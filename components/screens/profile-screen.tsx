@@ -14,12 +14,13 @@ import {
   LogIn,
 } from "lucide-react"
 
-import { useAuth, useClerk } from "@clerk/nextjs"
+import { useSession, signOut as nextAuthSignOut } from "next-auth/react"
 import { useRouter } from "next/navigation"
 
 export function ProfileScreen() {
-  const { isSignedIn, userId } = useAuth()
-  const { signOut } = useClerk()
+  const { data: session, status } = useSession()
+  const isSignedIn = status === 'authenticated'
+  const userId     = (session?.user as any)?.id as string | undefined
   const router = useRouter()
 
   const menuItems = [
@@ -86,12 +87,8 @@ export function ProfileScreen() {
 
   async function handleLogout() {
     try {
-      await fetch("/api/auth/logout", {
-        method: "POST",
-      })
-
-      await signOut()
-
+      await fetch("/api/auth/logout", { method: "POST" })
+      await nextAuthSignOut({ redirect: false })
       router.push("/")
     } catch (error) {
       console.error(error)

@@ -3,370 +3,279 @@
 import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { ArrowRight } from "lucide-react"
+import { signIn } from "next-auth/react"
 
-import {
-  Eye,
-  EyeOff,
-  ArrowRight,
-} from "lucide-react"
+type Tab = "login" | "cadastro"
 
-import { useSignUp } from "@clerk/nextjs"
-
-export default function SignUpPage() {
+export default function SignInPage() {
   const router = useRouter()
+  const [tab, setTab] = useState<Tab>("login")
 
-  const {
-    isLoaded,
-    signUp,
-    setActive,
-  } = useSignUp()
+  // ── campos compartilhados ──────────────────────────────────────────────
+  const [name,       setName]       = useState("")
+  const [identifier, setIdentifier] = useState("") // email ou telefone
+  const [loading,    setLoading]    = useState(false)
+  const [error,      setError]      = useState("")
 
-  const [name, setName] =
-    useState("")
-
-  const [email, setEmail] =
-    useState("")
-
-  const [password, setPassword] =
-    useState("")
-
-  const [confirmPassword, setConfirmPassword] =
-    useState("")
-
-  const [showPassword, setShowPassword] =
-    useState(false)
-
-  const [loading, setLoading] =
-    useState(false)
-
-  const [error, setError] =
-    useState("")
-
-  async function handleRegister(
-    e: React.FormEvent
-  ) {
+  // ── Login ──────────────────────────────────────────────────────────────
+  async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
+    const value = identifier.trim()
+    if (!value) return setError("Email ou telefone é obrigatório")
 
-    if (!isLoaded) return
+    setLoading(true)
+    setError("")
 
-    if (password !== confirmPassword) {
-      setError("As senhas não coincidem.")
+    const isEmail = value.includes("@")
+    const res = await signIn("credentials", {
+      redirect: false,
+      ...(isEmail ? { email: value } : { phone: value }),
+    })
+
+    setLoading(false)
+
+    if (res?.error) {
+      setError("Dados não encontrados. Verifique e tente novamente.")
       return
     }
 
-    try {
-      setLoading(true)
-      setError("")
+    router.push("/")
+    router.refresh()
+  }
 
-      const result =
-        await signUp.create({
-          emailAddress: email,
-          password,
-        })
+  // ── Cadastro ───────────────────────────────────────────────────────────
+  async function handleRegister(e: React.FormEvent) {
+    e.preventDefault()
+    const nameVal  = name.trim()
+    const idVal    = identifier.trim()
 
-      if (result.status === "complete") {
-        await setActive({
-          session:
-            result.createdSessionId,
-        })
+    if (!nameVal)  return setError("Nome é obrigatório")
+    if (!idVal)    return setError("Email ou telefone é obrigatório")
 
-        await fetch("/api/auth/register", {
-          method: "POST",
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-          body: JSON.stringify({
-            name,
-            email,
-          }),
-        })
+    setLoading(true)
+    setError("")
 
-        router.push("/")
-      } else {
-        setError(
-          "Não foi possível finalizar o cadastro."
-        )
-      }
-    } catch (err: any) {
-      setError(
-        err.errors?.[0]?.longMessage ||
-          "Erro ao criar conta."
-      )
-    } finally {
+    const isEmail = idVal.includes("@")
+
+    // 1. Cria o cliente no banco
+    const registerRes = await fetch("/api/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: nameVal,
+        ...(isEmail ? { email: idVal } : { phone: idVal }),
+      }),
+    })
+
+    if (!registerRes.ok) {
+      const data = await registerRes.json().catch(() => ({}))
       setLoading(false)
+      setError(data.error || "Erro ao criar conta. Tente novamente.")
+      return
     }
+
+    // 2. Faz login automaticamente
+    const loginRes = await signIn("credentials", {
+      redirect: false,
+      ...(isEmail ? { email: idVal } : { phone: idVal }),
+    })
+
+    setLoading(false)
+
+    if (loginRes?.error) {
+      setError("Conta criada, mas não foi possível entrar. Tente fazer login.")
+      setTab("login")
+      return
+    }
+
+    router.push("/")
+    router.refresh()
   }
 
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="mx-auto flex min-h-screen w-full max-w-7xl">
 
-        {/* LEFT */}
-
+        {/* ── LEFT (decorativo, desktop) ────────────────────────────── */}
         <div
           className="
-          hidden flex-1 flex-col justify-between
-          border-r border-border/50
-          bg-gradient-to-br
-          from-primary/10
-          via-background
-          to-background
-          p-12
-          lg:flex
-        "
+            hidden flex-1 flex-col justify-between
+            border-r border-border/50
+            bg-gradient-to-br from-primary/10 via-background to-background
+            p-12 lg:flex
+          "
         >
           <div>
-            <h1 className="text-5xl font-black">
-              Niran Sushi
-            </h1>
-
+            <h1 className="text-5xl font-black">Niran Sushi</h1>
             <p className="mt-4 max-w-md text-lg text-muted-foreground">
-              Crie sua conta e acompanhe seus pedidos.
+              Entre ou crie sua conta e acompanhe seus pedidos.
             </p>
           </div>
 
           <div className="space-y-5">
             <div className="rounded-3xl bg-card/60 p-6">
-              <h2 className="text-xl font-bold">
-                ✓ Pedidos rápidos
-              </h2>
+              <h2 className="text-xl font-bold">✓ Pedidos rápidos</h2>
             </div>
-
             <div className="rounded-3xl bg-card/60 p-6">
-              <h2 className="text-xl font-bold">
-                ✓ Promoções exclusivas
-              </h2>
+              <h2 className="text-xl font-bold">✓ Promoções exclusivas</h2>
             </div>
           </div>
         </div>
 
-        {/* RIGHT */}
-
+        {/* ── RIGHT (formulário) ───────────────────────────────────── */}
         <div
           className="
-          flex w-full items-center justify-center
-          px-4 py-10
-          sm:px-6
-          lg:w-[520px]
-        "
+            flex w-full items-center justify-center
+            px-4 py-10 sm:px-6 lg:w-[520px]
+          "
         >
           <div className="w-full max-w-md">
 
             <div className="mb-10 text-center lg:hidden">
-              <h1 className="text-4xl font-black">
-                Niran Sushi
-              </h1>
-
-              <p className="mt-2 text-muted-foreground">
-                Crie sua conta
-              </p>
+              <h1 className="text-4xl font-black">Niran Sushi</h1>
             </div>
 
             <div
               className="
-              rounded-3xl
-              border border-border/50
-              bg-card/60
-              p-6
-              backdrop-blur-xl
-              sm:p-8
-            "
+                rounded-3xl border border-border/50
+                bg-card/60 p-6 backdrop-blur-xl sm:p-8
+              "
             >
-              <div className="mb-8">
-                <h2 className="text-3xl font-bold">
-                  Criar conta
-                </h2>
-
-                <p className="mt-2 text-muted-foreground">
-                  Preencha seus dados.
-                </p>
-              </div>
-
-              <form
-                onSubmit={handleRegister}
-                className="space-y-5"
-              >
-                <div>
-                  <label className="mb-2 block text-sm font-medium">
-                    Nome
-                  </label>
-
-                  <input
-                    type="text"
-                    value={name}
-                    onChange={(e) =>
-                      setName(e.target.value)
-                    }
-                    placeholder="Seu nome"
-                    className="
-                    h-14 w-full rounded-2xl
-                    border border-border
-                    bg-background px-4
-                    outline-none
-                    focus:border-primary
-                  "
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-2 block text-sm font-medium">
-                    Email
-                  </label>
-
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) =>
-                      setEmail(e.target.value)
-                    }
-                    placeholder="Seu email"
-                    className="
-                    h-14 w-full rounded-2xl
-                    border border-border
-                    bg-background px-4
-                    outline-none
-                    focus:border-primary
-                  "
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-2 block text-sm font-medium">
-                    Senha
-                  </label>
-
-                  <div className="relative">
-                    <input
-                      type={
-                        showPassword
-                          ? "text"
-                          : "password"
-                      }
-                      value={password}
-                      onChange={(e) =>
-                        setPassword(
-                          e.target.value
-                        )
-                      }
-                      placeholder="Senha"
-                      className="
-                      h-14 w-full rounded-2xl
-                      border border-border
-                      bg-background
-                      px-4 pr-14
-                      outline-none
-                      focus:border-primary
-                    "
-                    />
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setShowPassword(
-                          !showPassword
-                        )
-                      }
-                      className="
-                      absolute right-4 top-1/2
-                      -translate-y-1/2
-                    "
-                    >
-                      {showPassword ? (
-                        <EyeOff className="h-5 w-5" />
-                      ) : (
-                        <Eye className="h-5 w-5" />
-                      )}
-                    </button>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="mb-2 block text-sm font-medium">
-                    Confirmar senha
-                  </label>
-
-                  <input
-                    type={
-                      showPassword
-                        ? "text"
-                        : "password"
-                    }
-                    value={confirmPassword}
-                    onChange={(e) =>
-                      setConfirmPassword(
-                        e.target.value
-                      )
-                    }
-                    placeholder="Confirme a senha"
-                    className="
-                    h-14 w-full rounded-2xl
-                    border border-border
-                    bg-background px-4
-                    outline-none
-                    focus:border-primary
-                  "
-                  />
-                </div>
-
-                {error && (
-                  <div
-                    className="
-                    rounded-2xl
-                    border
-                    border-destructive/30
-                    bg-destructive/10
-                    p-4
-                    text-sm
-                    text-destructive
-                  "
-                  >
-                    {error}
-                  </div>
-                )}
-
+              {/* Abas */}
+              <div className="mb-8 flex rounded-2xl bg-secondary/40 p-1">
                 <button
-                  type="submit"
-                  disabled={loading}
-                  className="
-                  flex h-14 w-full
-                  items-center justify-center
-                  gap-2
-                  rounded-2xl
-                  bg-primary
-                  font-semibold
-                  text-primary-foreground
-                "
+                  type="button"
+                  onClick={() => { setTab("login");    setError("") }}
+                  className={`flex-1 rounded-xl py-2.5 text-sm font-semibold transition-all ${
+                    tab === "login"
+                      ? "bg-background shadow"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
                 >
-                  {loading
-                    ? "Criando..."
-                    : "Criar conta"}
-
-                  <ArrowRight className="h-5 w-5" />
+                  Entrar
                 </button>
-              </form>
-
-              <div className="mt-8 text-center">
-                <p className="text-muted-foreground">
-                  Já possui conta?
-                </p>
-
-                <Link
-                  href="/sign-in"
-                  className="
-                  mt-2 inline-flex
-                  font-semibold
-                  text-primary
-                "
+                <button
+                  type="button"
+                  onClick={() => { setTab("cadastro"); setError("") }}
+                  className={`flex-1 rounded-xl py-2.5 text-sm font-semibold transition-all ${
+                    tab === "cadastro"
+                      ? "bg-background shadow"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
                 >
-                  Fazer login
-                </Link>
+                  Criar conta
+                </button>
               </div>
 
+              {/* ── LOGIN ──────────────────────────────────────────── */}
+              {tab === "login" && (
+                <form onSubmit={handleLogin} className="space-y-5">
+                  <div>
+                    <label className="mb-2 block text-sm font-medium">
+                      Email ou telefone
+                    </label>
+                    <input
+                      type="text"
+                      value={identifier}
+                      onChange={(e) => setIdentifier(e.target.value)}
+                      placeholder="email@ex.com ou +55 11 91234-5678"
+                      className="
+                        h-14 w-full rounded-2xl border border-border
+                        bg-background px-4 outline-none focus:border-primary
+                      "
+                    />
+                  </div>
+
+                  {error && (
+                    <div className="rounded-2xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+                      {error}
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="
+                      flex h-14 w-full items-center justify-center gap-2
+                      rounded-2xl bg-primary font-semibold text-primary-foreground
+                      transition-all hover:opacity-90 disabled:opacity-60
+                    "
+                  >
+                    {loading ? "Entrando..." : (
+                      <><span>Entrar</span><ArrowRight className="h-5 w-5" /></>
+                    )}
+                  </button>
+                </form>
+              )}
+
+              {/* ── CADASTRO ───────────────────────────────────────── */}
+              {tab === "cadastro" && (
+                <form onSubmit={handleRegister} className="space-y-5">
+                  <div>
+                    <label className="mb-2 block text-sm font-medium">
+                      Nome
+                    </label>
+                    <input
+                      type="text"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="Seu nome"
+                      className="
+                        h-14 w-full rounded-2xl border border-border
+                        bg-background px-4 outline-none focus:border-primary
+                      "
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-medium">
+                      Email ou telefone
+                    </label>
+                    <input
+                      type="text"
+                      value={identifier}
+                      onChange={(e) => setIdentifier(e.target.value)}
+                      placeholder="email@ex.com ou +55 11 91234-5678"
+                      className="
+                        h-14 w-full rounded-2xl border border-border
+                        bg-background px-4 outline-none focus:border-primary
+                      "
+                    />
+                  </div>
+
+                  {error && (
+                    <div className="rounded-2xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+                      {error}
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="
+                      flex h-14 w-full items-center justify-center gap-2
+                      rounded-2xl bg-primary font-semibold text-primary-foreground
+                      transition-all hover:opacity-90 disabled:opacity-60
+                    "
+                  >
+                    {loading ? "Criando conta..." : (
+                      <><span>Criar conta</span><ArrowRight className="h-5 w-5" /></>
+                    )}
+                  </button>
+                </form>
+              )}
+
+              <p className="mt-6 text-center text-sm text-muted-foreground">
+                Ao continuar, você concorda com nossos{" "}
+                <Link href="/" className="underline hover:text-foreground">
+                  Termos de Uso
+                </Link>
+                .
+              </p>
             </div>
           </div>
         </div>
-
       </div>
     </div>
   )

@@ -8,10 +8,10 @@ import { updateTable }         from '@/lib/database/queries/tables'
 
 // GET /api/sessions/:id
 export async function GET(
-  _req: Request,
+  req: Request,
   { params }: { params: { id: string } }
 ) {
-  const auth = await requireAuth(['admin', 'gerente', 'garcom'])
+  const auth = await requireAuth(req, ['admin', 'gerente', 'garcom'])
   if (auth.response) return auth.response
 
   try {
@@ -38,7 +38,7 @@ export async function PATCH(
   req: Request,
   { params }: { params: { id: string } }
 ) {
-  const auth = await requireAuth(['admin', 'gerente'])
+  const auth = await requireAuth(req, ['admin', 'gerente'])
   if (auth.response) return auth.response
 
   try {

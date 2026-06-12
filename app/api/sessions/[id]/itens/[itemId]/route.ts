@@ -12,7 +12,7 @@ export async function PATCH(
   req: Request,
   { params }: { params: { id: string; itemId: string } }
 ) {
-  const auth = await requireAuth(['admin', 'gerente'])
+  const auth = await requireAuth(req, ['admin', 'gerente'])
   if (auth.response) return auth.response
 
   try {

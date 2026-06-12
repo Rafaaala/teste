@@ -10,10 +10,10 @@ import { validateOrderAndProduct }    from '@/lib/database/validate-order-item-d
 
 // GET /api/sessions/:id/itens
 export async function GET(
-  _req: Request,
+  req: Request,
   { params }: { params: { id: string } }
 ) {
-  const auth = await requireAuth(['admin', 'gerente', 'garcom'])
+  const auth = await requireAuth(req, ['admin', 'gerente', 'garcom'])
   if (auth.response) return auth.response
 
   try {
@@ -41,7 +41,7 @@ export async function POST(
   req: Request,
   { params }: { params: { id: string } }
 ) {
-  const auth = await requireAuth(['admin', 'gerente', 'garcom'])
+  const auth = await requireAuth(req, ['admin', 'gerente', 'garcom'])
   if (auth.response) return auth.response
 
   try {

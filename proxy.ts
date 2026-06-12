@@ -1,24 +1,25 @@
 // proxy.ts
-import { clerkMiddleware } from '@clerk/nextjs/server'
+import { getToken }    from 'next-auth/jwt'
 import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
 
-export default clerkMiddleware(async (auth, req) => {
+export default async function proxy(req: NextRequest) {
   const host = req.headers.get('host') ?? ''
 
-  // Rotas do admin exigem autenticação Clerk
+  // Rotas do admin exigem sessão de staff via NextAuth
   if (host.startsWith('admin.')) {
-    const { userId } = await auth()
+    const token   = await getToken({ req, secret: process.env.NEXTAUTH_SECRET })
+    const isStaff = (token as any)?.isStaff === true
 
-    if (!userId) {
-      // Redireciona para login do Clerk
-      const signInUrl = new URL('/login', req.url)
+    if (!isStaff) {
+      const signInUrl = new URL('/sign-in', req.url)
       return NextResponse.redirect(signInUrl)
     }
   }
 
-  // Cardápio é público — passa direto
+  // Cardápio e demais rotas são públicos — passa direto
   return NextResponse.next()
-})
+}
 
 export const config = {
   matcher: ['/((?!_next|.*\\..*).*)'],
