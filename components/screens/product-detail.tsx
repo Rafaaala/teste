@@ -127,7 +127,7 @@ export function ProductDetail({ product, onBack }: ProductDetailProps) {
           {/* Add to Cart Button */}
           <Button
             onClick={handleAddToCart}
-            className="flex-1 gap-2 rounded-xl py-6 text-base font-bold"
+            className="w-full md:w-fit md:min-w-[12rem] gap-2 rounded-xl py-6 text-base font-bold"
           >
             <ShoppingCart className="h-5 w-5" />
             <span>R$ {totalPrice.toFixed(2).replace(".", ",")}</span>

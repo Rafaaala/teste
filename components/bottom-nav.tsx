@@ -22,15 +22,15 @@ export function BottomNav({ activeScreen, onNavigate }: BottomNavProps) {
   ]
 
   return (
-    <nav className="absolute bottom-0 left-0 right-0 z-40 border-t border-border bg-card/95 backdrop-blur-lg">
-      <div className="flex items-center justify-around pb-6 pt-2">
+    <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-card/95 backdrop-blur-lg h-16">
+      <div className="flex items-center justify-around h-full px-2">
         {navItems.map((item) => {
           const isActive = activeScreen === item.id
           return (
             <button
               key={item.id}
               onClick={() => onNavigate(item.id)}
-              className="relative flex flex-col items-center gap-1 px-3 py-1"
+              className="relative flex flex-col items-center gap-1 px-3"
             >
               <div className="relative">
                 <item.icon

@@ -52,69 +52,71 @@ export function CartScreen() {
         </div>
       </header>
 
-      {/* Items List */}
-      <div className="flex-1 overflow-y-auto px-4 pb-48 pt-4">
-        <div className="space-y-3">
-          {items.map((item) => (
-            <div
-              key={item.id}
-              className="flex gap-3 rounded-xl bg-card p-3"
-            >
-              <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-lg">
-                <Image
-                  src={item.image}
-                  alt={item.name}
-                  fill
-                  className="object-cover"
-                />
-              </div>
-              <div className="flex flex-1 flex-col justify-between">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="line-clamp-1 text-sm font-semibold text-foreground">
-                      {item.name}
-                    </h3>
-                    <p className="text-xs text-muted-foreground">
-                      R$ {(item.promoPrice || item.price).toFixed(2).replace(".", ",")} cada
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => removeItem(item.id)}
-                    className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-destructive/20 hover:text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+      {/* Scrollable Items List */}
+      <div className="flex-1 overflow-hidden">
+        <div className="h-full overflow-y-auto px-4 pt-4">
+          <div className="space-y-3">
+            {items.map((item) => (
+              <div
+                key={item.id}
+                className="flex gap-3 rounded-xl bg-card p-3"
+              >
+                <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-lg">
+                  <Image
+                    src={item.image}
+                    alt={item.name}
+                    fill
+                    className="object-cover"
+                  />
                 </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 rounded-lg bg-secondary px-2 py-1">
+                <div className="flex flex-1 flex-col justify-between">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h3 className="line-clamp-1 text-sm font-semibold text-foreground">
+                        {item.name}
+                      </h3>
+                      <p className="text-xs text-muted-foreground">
+                        R$ {(item.promoPrice || item.price).toFixed(2).replace(".", ",")} cada
+                      </p>
+                    </div>
                     <button
-                      onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                      className="flex h-6 w-6 items-center justify-center rounded bg-muted"
+                      onClick={() => removeItem(item.id)}
+                      className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-destructive/20 hover:text-destructive"
                     >
-                      <Minus className="h-3 w-3 text-foreground" />
+                      <Trash2 className="h-4 w-4" />
                     </button>
-                    <span className="w-6 text-center text-sm font-bold text-foreground">
-                      {item.quantity}
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 rounded-lg bg-secondary px-2 py-1">
+                      <button
+                        onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                        className="flex h-6 w-6 items-center justify-center rounded bg-muted"
+                      >
+                        <Minus className="h-3 w-3 text-foreground" />
+                      </button>
+                      <span className="w-6 text-center text-sm font-bold text-foreground">
+                        {item.quantity}
+                      </span>
+                      <button
+                        onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                        className="flex h-6 w-6 items-center justify-center rounded bg-primary"
+                      >
+                        <Plus className="h-3 w-3 text-primary-foreground" />
+                      </button>
+                    </div>
+                    <span className="text-sm font-bold text-primary">
+                      R$ {((item.promoPrice || item.price) * item.quantity).toFixed(2).replace(".", ",")}
                     </span>
-                    <button
-                      onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                      className="flex h-6 w-6 items-center justify-center rounded bg-primary"
-                    >
-                      <Plus className="h-3 w-3 text-primary-foreground" />
-                    </button>
                   </div>
-                  <span className="text-sm font-bold text-primary">
-                    R$ {((item.promoPrice || item.price) * item.quantity).toFixed(2).replace(".", ",")}
-                  </span>
                 </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
 
       {/* Order Summary */}
-      <div className="absolute bottom-0 left-0 right-0 border-t border-border bg-card/95 px-4 pb-24 pt-4 backdrop-blur-lg">
+      <div className="flex-shrink-0 border-t border-border bg-card/95 px-4 pb-6 pt-4 backdrop-blur-lg">
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Subtotal</span>
@@ -134,7 +136,7 @@ export function CartScreen() {
             </span>
           </div>
         </div>
-        <Button className="mt-4 w-full rounded-xl py-6 text-base font-bold">
+        <Button className="mt-4 w-full md:w-fit md:min-w-[14rem] rounded-xl py-6 text-base font-bold">
           Finalizar Pedido
         </Button>
       </div>
