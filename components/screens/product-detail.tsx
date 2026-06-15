@@ -104,7 +104,9 @@ export function ProductDetail({ product, onBack }: ProductDetailProps) {
 
       {/* Bottom Action Bar */}
       <div className="absolute bottom-0 left-0 right-0 border-t border-border bg-card/95 px-4 pb-8 pt-4 backdrop-blur-lg">
-        <div className="flex items-center gap-4">
+        <div className="app-container">
+          <div className="app-bottom-nav-inner">
+            <div className="flex items-center gap-4">
           {/* Quantity Selector */}
           <div className="flex items-center gap-3 rounded-xl bg-secondary px-3 py-2">
             <button
@@ -132,6 +134,8 @@ export function ProductDetail({ product, onBack }: ProductDetailProps) {
             <ShoppingCart className="h-5 w-5" />
             <span>R$ {totalPrice.toFixed(2).replace(".", ",")}</span>
           </Button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

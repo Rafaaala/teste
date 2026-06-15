@@ -1,20 +1,16 @@
-"use client"
-
-import Image from "next/image"
-import { Minus, Plus, Trash2, ShoppingBag } from "lucide-react"
-import { useCart } from "@/lib/cart-context"
-import { Button } from "@/components/ui/button"
-
-interface CartScreenProps {
-  onCheckout?: () => void
-}
-
-export function CartScreen({ onCheckout }: CartScreenProps) {
-  const { items, updateQuantity, removeItem, totalPrice, clearCart } = useCart()
-
-  if (items.length === 0) {
-    return (
-      <div className="flex h-full flex-col overflow-hidden">
+"use client";
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.CartScreen = CartScreen;
+var image_1 = require("next/image");
+var lucide_react_1 = require("lucide-react");
+var cart_context_1 = require("@/lib/cart-context");
+var button_1 = require("@/components/ui/button");
+function CartScreen(_a) {
+    var onCheckout = _a.onCheckout;
+    var _b = (0, cart_context_1.useCart)(), items = _b.items, updateQuantity = _b.updateQuantity, removeItem = _b.removeItem, totalPrice = _b.totalPrice, clearCart = _b.clearCart;
+    if (items.length === 0) {
+        return (<div className="flex h-full flex-col overflow-hidden">
         <header className="flex-shrink-0 bg-card px-4 pb-4 pt-10">
           <h1 className="text-xl font-bold text-foreground">Carrinho</h1>
           <p className="text-sm text-muted-foreground">
@@ -23,7 +19,7 @@ export function CartScreen({ onCheckout }: CartScreenProps) {
         </header>
         <div className="flex flex-1 flex-col items-center justify-center px-4">
           <div className="flex h-24 w-24 items-center justify-center rounded-full bg-card">
-            <ShoppingBag className="h-12 w-12 text-muted-foreground" />
+            <lucide_react_1.ShoppingBag className="h-12 w-12 text-muted-foreground"/>
           </div>
           <h2 className="mt-4 text-lg font-semibold text-foreground">
             Nenhum item no carrinho
@@ -32,12 +28,9 @@ export function CartScreen({ onCheckout }: CartScreenProps) {
             Adicione deliciosos pratos do nosso cardápio para começar seu pedido
           </p>
         </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="flex h-full flex-col overflow-hidden">
+      </div>);
+    }
+    return (<div className="flex h-full flex-col overflow-hidden">
       {/* Header */}
       <header className="flex-shrink-0 bg-card px-4 pb-4 pt-10">
         <div className="flex items-center justify-between">
@@ -47,10 +40,7 @@ export function CartScreen({ onCheckout }: CartScreenProps) {
               {items.length} item(s) no carrinho
             </p>
           </div>
-          <button
-            onClick={clearCart}
-            className="text-xs font-medium text-primary hover:underline"
-          >
+          <button onClick={clearCart} className="text-xs font-medium text-primary hover:underline">
             Limpar tudo
           </button>
         </div>
@@ -60,18 +50,9 @@ export function CartScreen({ onCheckout }: CartScreenProps) {
       <div className="flex-1 overflow-hidden">
         <div className="h-full overflow-y-auto px-4 pt-4">
           <div className="space-y-3">
-            {items.map((item) => (
-              <div
-                key={item.id}
-                className="flex gap-3 rounded-xl bg-card p-3"
-              >
+            {items.map(function (item) { return (<div key={item.id} className="flex gap-3 rounded-xl bg-card p-3">
                 <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-lg">
-                  <Image
-                    src={item.image}
-                    alt={item.name}
-                    fill
-                    className="object-cover"
-                  />
+                  <image_1.default src={item.image} alt={item.name} fill className="object-cover"/>
                 </div>
                 <div className="flex flex-1 flex-col justify-between">
                   <div className="flex items-start justify-between">
@@ -83,29 +64,20 @@ export function CartScreen({ onCheckout }: CartScreenProps) {
                         R$ {(item.promoPrice || item.price).toFixed(2).replace(".", ",")} cada
                       </p>
                     </div>
-                    <button
-                      onClick={() => removeItem(item.id)}
-                      className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-destructive/20 hover:text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
+                    <button onClick={function () { return removeItem(item.id); }} className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-destructive/20 hover:text-destructive">
+                      <lucide_react_1.Trash2 className="h-4 w-4"/>
                     </button>
                   </div>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 rounded-lg bg-secondary px-2 py-1">
-                      <button
-                        onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                        className="flex h-6 w-6 items-center justify-center rounded bg-muted"
-                      >
-                        <Minus className="h-3 w-3 text-foreground" />
+                      <button onClick={function () { return updateQuantity(item.id, item.quantity - 1); }} className="flex h-6 w-6 items-center justify-center rounded bg-muted">
+                        <lucide_react_1.Minus className="h-3 w-3 text-foreground"/>
                       </button>
                       <span className="w-6 text-center text-sm font-bold text-foreground">
                         {item.quantity}
                       </span>
-                      <button
-                        onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                        className="flex h-6 w-6 items-center justify-center rounded bg-primary"
-                      >
-                        <Plus className="h-3 w-3 text-primary-foreground" />
+                      <button onClick={function () { return updateQuantity(item.id, item.quantity + 1); }} className="flex h-6 w-6 items-center justify-center rounded bg-primary">
+                        <lucide_react_1.Plus className="h-3 w-3 text-primary-foreground"/>
                       </button>
                     </div>
                     <span className="text-sm font-bold text-primary">
@@ -113,8 +85,7 @@ export function CartScreen({ onCheckout }: CartScreenProps) {
                     </span>
                   </div>
                 </div>
-              </div>
-            ))}
+              </div>); })}
           </div>
         </div>
       </div>
@@ -132,7 +103,7 @@ export function CartScreen({ onCheckout }: CartScreenProps) {
             <span className="text-muted-foreground">Taxa de entrega</span>
             <span className="font-medium text-primary">Grátis</span>
           </div>
-          <div className="my-2 h-px bg-border" />
+          <div className="my-2 h-px bg-border"/>
           <div className="flex justify-between">
             <span className="font-semibold text-foreground">Total</span>
             <span className="text-lg font-bold text-primary">
@@ -140,13 +111,9 @@ export function CartScreen({ onCheckout }: CartScreenProps) {
             </span>
           </div>
         </div>
-        <Button
-          className="mt-4 w-full md:w-fit md:min-w-[14rem] rounded-xl py-6 text-base font-bold"
-          onClick={onCheckout}
-        >
+        <button_1.Button className="mt-4 w-full md:w-fit md:min-w-[14rem] rounded-xl py-6 text-base font-bold" onClick={onCheckout}>
           Finalizar Pedido
-        </Button>
+        </button_1.Button>
       </div>
-    </div>
-  )
+    </div>);
 }

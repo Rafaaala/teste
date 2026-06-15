@@ -23,7 +23,9 @@ export function BottomNav({ activeScreen, onNavigate }: BottomNavProps) {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-card/95 backdrop-blur-lg h-16">
-      <div className="flex items-center justify-around h-full px-2">
+      <div className="app-container h-full">
+        <div className="app-bottom-nav-inner">
+          <div className="flex items-center justify-around h-full px-2">
         {navItems.map((item) => {
           const isActive = activeScreen === item.id
           return (
@@ -54,6 +56,8 @@ export function BottomNav({ activeScreen, onNavigate }: BottomNavProps) {
             </button>
           )
         })}
+          </div>
+        </div>
       </div>
     </nav>
   )

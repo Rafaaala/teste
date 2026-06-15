@@ -30,7 +30,13 @@ export default function RootLayout({
     <html lang="pt-BR" className="bg-background">
       <body className="font-sans antialiased">
         <Providers>
-          {children}
+          <div className="app-viewport min-h-screen">
+            <div className="app-container">
+              <div className="app-main">
+                {children}
+              </div>
+            </div>
+          </div>
         </Providers>
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>

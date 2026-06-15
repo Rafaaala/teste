@@ -7,12 +7,13 @@ import { HomeScreen } from "@/components/screens/home-screen"
 import { MenuScreen } from "@/components/screens/menu-screen"
 import { ProductDetail } from "@/components/screens/product-detail"
 import { CartScreen } from "@/components/screens/cart-screen"
+import { CheckoutScreen } from "@/components/screens/checkout-screen"
 import { ProfileScreen } from "@/components/screens/profile-screen"
 import { AboutScreen } from "@/components/screens/about-screen"
 import { CartProvider } from "@/lib/cart-context"
 import { Product } from "@/lib/data"
 
-type Screen = "home" | "menu" | "cart" | "profile" | "about"
+type Screen = "home" | "menu" | "cart" | "checkout" | "profile" | "about"
 
 function AppContent() {
   const [activeScreen, setActiveScreen] = useState<Screen>("home")
@@ -30,6 +31,10 @@ function AppContent() {
   const handleNavigateToMenu = (category?: string) => {
     setMenuCategory(category)
     setActiveScreen("menu")
+  }
+
+  const handleNavigateToCheckout = () => {
+    setActiveScreen("checkout")
   }
 
   const renderScreen = () => {
@@ -59,7 +64,9 @@ function AppContent() {
           />
         )
       case "cart":
-        return <CartScreen />
+        return <CartScreen onCheckout={handleNavigateToCheckout} />
+      case "checkout":
+        return <CheckoutScreen onBack={() => setActiveScreen("cart")} />
       case "profile":
         return <ProfileScreen />
       case "about":
@@ -78,7 +85,7 @@ function AppContent() {
     <MobileFrame>
       <div className="relative h-full">
         {renderScreen()}
-        {!selectedProduct && (
+        {!selectedProduct && activeScreen !== "checkout" && (
           <BottomNav activeScreen={activeScreen} onNavigate={setActiveScreen} />
         )}
       </div>
