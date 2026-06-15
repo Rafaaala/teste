@@ -4,6 +4,7 @@ import { useState } from "react"
 import { Filter, Flame, Tag, ArrowUpDown } from "lucide-react"
 import { categories, products, Product } from "@/lib/data"
 import { ProductCard } from "@/components/product-card"
+import { ThemeToggle } from "@/components/theme-toggle"
 
 interface MenuScreenProps {
   onSelectProduct: (product: Product) => void
@@ -48,10 +49,15 @@ export function MenuScreen({ onSelectProduct, initialCategory }: MenuScreenProps
     <div className="flex h-full flex-col overflow-hidden">
       {/* Header */}
       <header className="flex-shrink-0 bg-card px-4 pb-4 pt-10">
-        <h1 className="text-xl font-bold text-foreground">Cardápio</h1>
-        <p className="text-sm text-muted-foreground">
-          Escolha seus pratos favoritos
-        </p>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h1 className="text-xl font-bold text-foreground">Cardápio</h1>
+            <p className="text-sm text-muted-foreground">
+              Escolha seus pratos favoritos
+            </p>
+          </div>
+          <ThemeToggle />
+        </div>
 
         {/* Category Tabs */}
         <div className="no-scrollbar mt-4 flex gap-2 overflow-x-auto">

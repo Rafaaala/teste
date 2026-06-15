@@ -5,6 +5,7 @@ import { Search, Star, Clock, MapPin } from "lucide-react"
 import { categories, products, Product } from "@/lib/data"
 import { ProductCard } from "@/components/product-card"
 import { useState } from "react"
+import { ThemeToggle } from "@/components/theme-toggle"
 
 interface HomeScreenProps {
   onSelectProduct: (product: Product) => void
@@ -45,9 +46,12 @@ export function HomeScreen({ onSelectProduct, onNavigateToMenu }: HomeScreenProp
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2 rounded-full bg-card px-3 py-1.5">
-            <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-            <span className="text-sm font-semibold text-foreground">4.8</span>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 rounded-full bg-card px-3 py-1.5">
+              <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+              <span className="text-sm font-semibold text-foreground">4.8</span>
+            </div>
+            <ThemeToggle />
           </div>
         </div>
 

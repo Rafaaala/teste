@@ -1,10 +1,13 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import {
   ArrowLeft,
+  AlertCircle,
+  CheckCircle2,
   CreditCard,
   DollarSign,
+  Loader2,
   Hash,
   MapPin,
   Package,
@@ -24,6 +27,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
+import { ThemeToggle } from "@/components/theme-toggle"
 
 interface CheckoutScreenProps {
   onBack: () => void
@@ -93,6 +97,108 @@ export function CheckoutScreen({ onBack }: CheckoutScreenProps) {
   const [coupon, setCoupon] = useState("")
   const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null)
   const [couponMessage, setCouponMessage] = useState("")
+  const [cepLoading, setCepLoading] = useState(false)
+  const [cepStatus, setCepStatus] = useState<{
+    type: "idle" | "success" | "error" | "loading"
+    message: string
+  }>({
+    type: "idle",
+    message: "",
+  })
+  const [address, setAddress] = useState({
+    cep: "",
+    street: "",
+    number: "",
+    complement: "",
+    neighborhood: "",
+    city: "",
+    state: "",
+  })
+
+  const onlyDigits = (value: string) => value.replace(/\D/g, "").slice(0, 8)
+
+  const formatCep = (value: string) => {
+    const digits = onlyDigits(value)
+    if (digits.length <= 5) return digits
+    return `${digits.slice(0, 5)}-${digits.slice(5)}`
+  }
+
+  useEffect(() => {
+    const cepDigits = onlyDigits(address.cep)
+
+    if (!cepDigits) {
+      setCepStatus({ type: "idle", message: "" })
+      setCepLoading(false)
+      return
+    }
+
+    if (cepDigits.length < 8) {
+      setCepStatus({
+        type: "error",
+        message: "CEP inválido. Use 8 dígitos.",
+      })
+      setCepLoading(false)
+      return
+    }
+
+    let cancelled = false
+
+    const fetchAddress = async () => {
+      setCepLoading(true)
+      setCepStatus({ type: "loading", message: "Buscando endereço pelo CEP..." })
+
+      try {
+        const response = await fetch(`https://viacep.com.br/ws/${cepDigits}/json/`)
+
+        if (!response.ok) {
+          throw new Error("Falha ao consultar o CEP")
+        }
+
+        const data = await response.json()
+
+        if (cancelled) return
+
+        if (data.erro) {
+          setCepStatus({
+            type: "error",
+            message: "CEP não encontrado.",
+          })
+          return
+        }
+
+        setAddress((current) => ({
+          ...current,
+          street: data.logradouro || current.street,
+          neighborhood: data.bairro || current.neighborhood,
+          city: data.localidade || current.city,
+          state: data.uf || current.state,
+        }))
+
+        setCepStatus({
+          type: "success",
+          message: "Endereço preenchido automaticamente.",
+        })
+      } catch {
+        if (!cancelled) {
+          setCepStatus({
+            type: "error",
+            message: "Não foi possível buscar o CEP agora.",
+          })
+        }
+      } finally {
+        if (!cancelled) {
+          setCepLoading(false)
+        }
+      }
+    }
+
+    const timeout = window.setTimeout(fetchAddress, 450)
+
+    return () => {
+      cancelled = true
+      window.clearTimeout(timeout)
+    }
+  }, [address.cep])
 
   const discount = useMemo(() => {
     if (appliedCoupon === "NIRAN10") {
@@ -175,25 +281,166 @@ export function CheckoutScreen({ onBack }: CheckoutScreenProps) {
           >
             <ArrowLeft className="h-4 w-4" /> Voltar
           </button>
-          <div className="text-right">
-            <h1 className="text-xl font-semibold text-foreground">Finalizar Pedido</h1>
+          <div className="flex items-center gap-3">
+            <div className="text-right">
+              <h1 className="text-xl font-semibold text-foreground">Finalizar Pedido</h1>
+            </div>
+            <ThemeToggle />
           </div>
         </div>
       </header>
 
       <div className="flex-1 overflow-y-auto px-4 pb-40 pt-4">
         <section className="space-y-4">
-          <div className="flex items-center justify-between gap-3 rounded-3xl bg-card p-4 shadow-sm border border-border">
-            <div>
-              <p className="text-sm font-semibold text-foreground">Endereço de Entrega</p>
-              <p className="mt-3 text-base font-bold text-foreground">
-                Rua das Flores, 478
-              </p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                João Silva · Itabaiana, Centro
-              </p>
+          <div className="rounded-3xl border border-border bg-card p-4 shadow-sm">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-foreground">Endereço de entrega</p>
+                <p className="text-sm text-muted-foreground">
+                  Preencha o CEP e complete os demais campos.
+                </p>
+              </div>
+              {cepLoading ? (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Buscando CEP
+                </div>
+              ) : null}
             </div>
-            <Button variant="outline" size="sm" onClick={() => alert("Alterar endereço")}>Alterar</Button>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="md:col-span-1">
+                <label className="mb-2 block text-sm font-medium text-foreground">
+                  CEP
+                </label>
+                <Input
+                  value={formatCep(address.cep)}
+                  onChange={(event) =>
+                    setAddress((current) => ({
+                      ...current,
+                      cep: onlyDigits(event.target.value),
+                    }))
+                  }
+                  inputMode="numeric"
+                  placeholder="00000-000"
+                  maxLength={9}
+                />
+                {cepStatus.message ? (
+                  <p
+                    className={cn(
+                      "mt-2 flex items-center gap-2 text-xs",
+                      cepStatus.type === "error" && "text-destructive",
+                      cepStatus.type === "success" && "text-emerald-600 dark:text-emerald-400",
+                      cepStatus.type === "loading" && "text-muted-foreground",
+                    )}
+                  >
+                    {cepStatus.type === "error" ? <AlertCircle className="h-3.5 w-3.5" /> : null}
+                    {cepStatus.message}
+                  </p>
+                ) : null}
+              </div>
+
+              <div className="md:col-span-1">
+                <label className="mb-2 block text-sm font-medium text-foreground">
+                  Número
+                </label>
+                <Input
+                  value={address.number}
+                  onChange={(event) =>
+                    setAddress((current) => ({
+                      ...current,
+                      number: event.target.value,
+                    }))
+                  }
+                  placeholder="123"
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="mb-2 block text-sm font-medium text-foreground">
+                  Rua
+                </label>
+                <Input
+                  value={address.street}
+                  onChange={(event) =>
+                    setAddress((current) => ({
+                      ...current,
+                      street: event.target.value,
+                    }))
+                  }
+                  placeholder="Rua, avenida, travessa..."
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="mb-2 block text-sm font-medium text-foreground">
+                  Complemento
+                </label>
+                <Input
+                  value={address.complement}
+                  onChange={(event) =>
+                    setAddress((current) => ({
+                      ...current,
+                      complement: event.target.value,
+                    }))
+                  }
+                  placeholder="Apartamento, bloco, referência..."
+                />
+              </div>
+
+              <div className="md:col-span-1">
+                <label className="mb-2 block text-sm font-medium text-foreground">
+                  Bairro
+                </label>
+                <Input
+                  value={address.neighborhood}
+                  onChange={(event) =>
+                    setAddress((current) => ({
+                      ...current,
+                      neighborhood: event.target.value,
+                    }))
+                  }
+                  placeholder="Centro"
+                />
+              </div>
+
+              <div className="md:col-span-1">
+                <label className="mb-2 block text-sm font-medium text-foreground">
+                  Estado
+                </label>
+                <Input
+                  value={address.state}
+                  onChange={(event) =>
+                    setAddress((current) => ({
+                      ...current,
+                      state: event.target.value.toUpperCase().slice(0, 2),
+                    }))
+                  }
+                  placeholder="PB"
+                  maxLength={2}
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="mb-2 block text-sm font-medium text-foreground">
+                  Cidade
+                </label>
+                <Input
+                  value={address.city}
+                  onChange={(event) =>
+                    setAddress((current) => ({
+                      ...current,
+                      city: event.target.value,
+                    }))
+                  }
+                  placeholder="Itabaiana"
+                />
+              </div>
+            </div>
+
+            <div className="mt-4 rounded-2xl bg-secondary/40 px-4 py-3 text-sm text-muted-foreground">
+              Você pode editar qualquer campo manualmente após o preenchimento.
+            </div>
           </div>
 
           <div className="rounded-3xl bg-card p-4 shadow-sm border border-border">

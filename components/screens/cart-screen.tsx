@@ -4,6 +4,7 @@ import Image from "next/image"
 import { Minus, Plus, Trash2, ShoppingBag } from "lucide-react"
 import { useCart } from "@/lib/cart-context"
 import { Button } from "@/components/ui/button"
+import { ThemeToggle } from "@/components/theme-toggle"
 
 interface CartScreenProps {
   onCheckout?: () => void
@@ -40,19 +41,22 @@ export function CartScreen({ onCheckout }: CartScreenProps) {
     <div className="flex h-full flex-col overflow-hidden">
       {/* Header */}
       <header className="flex-shrink-0 bg-card px-4 pb-4 pt-10">
-        <div className="flex items-center justify-between">
+        <div className="flex items-start justify-between gap-3">
           <div>
             <h1 className="text-xl font-bold text-foreground">Carrinho</h1>
             <p className="text-sm text-muted-foreground">
               {items.length} item(s) no carrinho
             </p>
           </div>
-          <button
-            onClick={clearCart}
-            className="text-xs font-medium text-primary hover:underline"
-          >
-            Limpar tudo
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={clearCart}
+              className="text-xs font-medium text-primary hover:underline"
+            >
+              Limpar tudo
+            </button>
+            <ThemeToggle />
+          </div>
         </div>
       </header>
 

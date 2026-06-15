@@ -82,7 +82,7 @@ function AppContent() {
   }
 
   return (
-    <MobileFrame>
+    <MobileFrame showThemeToggleFallback={activeScreen === "about" || !!selectedProduct}>
       <div className="relative h-full">
         {renderScreen()}
         {!selectedProduct && activeScreen !== "checkout" && (

@@ -16,6 +16,7 @@ import {
 
 import { useSession, signOut as nextAuthSignOut } from "next-auth/react"
 import { useRouter } from "next/navigation"
+import { ThemeToggle } from "@/components/theme-toggle"
 
 export function ProfileScreen() {
   const { data: session, status } = useSession()
@@ -113,12 +114,14 @@ export function ProfileScreen() {
         >
           <div
             className="
-              w-full max-w-md
+              relative w-full max-w-md
               rounded-3xl border border-border/50
               bg-card/60 p-8
               backdrop-blur-xl
             "
           >
+            <ThemeToggle className="absolute right-4 top-4" />
+
             {/* LOGO/TITLE */}
             <div className="mb-8 text-center">
               <div
@@ -215,7 +218,7 @@ export function ProfileScreen() {
             bg-card/30 lg:flex lg:flex-col
           "
         >
-          <div className="p-6">
+          <div className="flex items-start justify-between gap-4 p-6">
             <div className="flex items-center gap-4">
               <div
                 className="
@@ -236,6 +239,7 @@ export function ProfileScreen() {
                 </p>
               </div>
             </div>
+            <ThemeToggle />
           </div>
 
           {/* MENU */}
@@ -303,7 +307,7 @@ export function ProfileScreen() {
             "
           >
             <div className="px-4 py-4">
-              <div className="flex items-center gap-4">
+              <div className="flex items-center justify-between gap-4">
                 <div
                   className="
                     flex h-14 w-14 items-center
@@ -322,6 +326,7 @@ export function ProfileScreen() {
                     Usuário autenticado
                   </p>
                 </div>
+                <ThemeToggle className="shrink-0" />
               </div>
             </div>
           </header>

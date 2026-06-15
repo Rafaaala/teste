@@ -5,6 +5,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { ArrowRight } from "lucide-react"
 import { signIn } from "next-auth/react"
+import { ThemeToggle } from "@/components/theme-toggle"
 
 type Tab = "login" | "cadastro"
 
@@ -95,6 +96,9 @@ export default function SignInPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
+      <div className="fixed right-4 top-4 z-50">
+        <ThemeToggle />
+      </div>
       <div className="mx-auto flex min-h-screen w-full max-w-7xl">
 
         {/* ── LEFT (decorativo, desktop) ────────────────────────────── */}
