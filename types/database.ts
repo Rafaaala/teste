@@ -235,6 +235,18 @@ export type OrderStatus =
   | 'entregue'
   | 'cancelado'
 
+export type PaymentMethod =
+  | 'pix'
+  | 'cartao_credito'
+  | 'cartao_debito'
+  | 'dinheiro'
+
+export type PaymentStatus =
+  | 'pendente'
+  | 'confirmado'
+  | 'recusado'
+  | 'expirado'
+
 export interface Order {
   id:                   string
   customer_id:          string
@@ -274,6 +286,32 @@ export interface UpdateOrderInput {
   notes?:                string
   cancellation_reason?:  string
   cancelled_by?:         string
+}
+
+// PAYMENT
+
+export interface Payment {
+  id:               string
+  order_id:         string
+  method:           PaymentMethod
+  amount:           number
+  status:           PaymentStatus
+  external_id:      string | null
+  pix_qr_code:      string | null
+  pix_qr_code_text: string | null
+  pix_expires_at:   Date | null
+  expires_at:       Date | null
+  failure_reason:   string | null
+  confirmed_at:     Date | null
+  created_at:       Date
+  updated_at:       Date
+}
+
+export interface CreatePaymentInput {
+  order_id: string
+  method: PaymentMethod
+  amount: number
+  status?: PaymentStatus
 }
 
 // ORDER ITEM

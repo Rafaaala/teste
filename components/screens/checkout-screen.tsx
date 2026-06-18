@@ -1,9 +1,11 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { useRouter } from "next/navigation"
 import {
   ArrowLeft,
   AlertCircle,
+  BadgeCheck,
   CheckCircle2,
   CreditCard,
   DollarSign,
@@ -13,6 +15,7 @@ import {
   Package,
   Receipt,
   Truck,
+  Sparkles,
 } from "lucide-react"
 import { useCart } from "@/lib/cart-context"
 import { Button } from "@/components/ui/button"
@@ -28,9 +31,24 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { notifyError, notifyInfo, notifySuccess } from "@/lib/notifications"
+import { useSession } from "next-auth/react"
+import type { CartItem } from "@/lib/data"
 
 interface CheckoutScreenProps {
   onBack: () => void
+  onPaymentCreated?: (payload: PaymentNavigationPayload) => void
+}
+
+export interface PaymentNavigationPayload {
+  orderId: string
+  paymentId?: string
+  paymentMethod: PaymentMethod
+  status: "aguardando" | "pago" | "expirado" | "erro"
+  total: number
+  expiresAt?: string
+  qrCode?: string
+  qrCodeText?: string
 }
 
 type DeliveryMethod = "delivery" | "pickup"
@@ -91,6 +109,8 @@ const paymentMethods: Array<{
 
 export function CheckoutScreen({ onBack }: CheckoutScreenProps) {
   const { items, totalItems, totalPrice } = useCart()
+  const router = useRouter()
+  const { data: session } = useSession()
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>("delivery")
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("pix")
   const [notes, setNotes] = useState("")
@@ -114,6 +134,16 @@ export function CheckoutScreen({ onBack }: CheckoutScreenProps) {
     city: "",
     state: "",
   })
+  const [checkoutState, setCheckoutState] = useState<"idle" | "loading" | "success" | "error">("idle")
+  const [checkoutMessage, setCheckoutMessage] = useState("")
+  const [paymentPayload, setPaymentPayload] = useState<PaymentNavigationPayload | null>(null)
+  const [paymentInfo, setPaymentInfo] = useState<{
+    qrCode: string
+    qrCodeText: string
+    expiresAt: string
+  } | null>(null)
+  const [paymentPolling, setPaymentPolling] = useState(false)
+  const submitLockRef = useRef(false)
 
   const onlyDigits = (value: string) => value.replace(/\D/g, "").slice(0, 8)
 
@@ -210,9 +240,36 @@ export function CheckoutScreen({ onBack }: CheckoutScreenProps) {
   const deliveryFee = deliveryMethod === "delivery" ? 8.5 : 0
   const subtotal = totalPrice
   const total = subtotal + deliveryFee - discount
+  const customerId = (session?.user as any)?.id as string | undefined
 
   const formatMoney = (value: number) =>
     `R$ ${value.toFixed(2).replace(".", ",")}`
+
+  const formatDateTime = (value: string | Date) => {
+    const date = new Date(value)
+    return new Intl.DateTimeFormat("pt-BR", {
+      dateStyle: "short",
+      timeStyle: "short",
+    }).format(date)
+  }
+
+  const calculatePaymentExpiration = (expiresAt?: string) => {
+    if (!expiresAt) return 0
+    return Math.max(0, Math.floor((new Date(expiresAt).getTime() - Date.now()) / 1000))
+  }
+
+  const [paymentCountdown, setPaymentCountdown] = useState(0)
+
+  useEffect(() => {
+    if (!paymentInfo?.expiresAt) return
+
+    setPaymentCountdown(calculatePaymentExpiration(paymentInfo.expiresAt))
+    const interval = window.setInterval(() => {
+      setPaymentCountdown(calculatePaymentExpiration(paymentInfo.expiresAt))
+    }, 1000)
+
+    return () => window.clearInterval(interval)
+  }, [paymentInfo?.expiresAt])
 
   const handleApplyCoupon = () => {
     if (!coupon.trim()) {
@@ -230,12 +287,203 @@ export function CheckoutScreen({ onBack }: CheckoutScreenProps) {
     setCouponMessage("Cupom inválido")
   }
 
-  const handleConfirm = () => {
-    if (items.length === 0) {
+  const parseNumber = (value: string) => {
+    const digits = value.replace(/\D/g, "")
+    return digits ? Number(digits) : 0
+  }
+
+  const buildAddressPayload = () => ({
+    customer_id: customerId,
+    zip_code: address.cep,
+    street: address.street,
+    number: address.number,
+    complement: address.complement,
+    neighborhood: address.neighborhood,
+    city: address.city,
+    state: address.state,
+  })
+
+  const handleCreateCheckout = async () => {
+    if (submitLockRef.current || checkoutState === "loading") return
+
+    if (!customerId) {
+      setCheckoutState("error")
+      setCheckoutMessage("É necessário entrar na conta para finalizar o pedido.")
+      notifyError("orderCreationError")
       return
     }
-    window.alert("Pedido confirmado! Obrigado pela compra.")
+
+    if (!address.cep || !address.street || !address.number || !address.neighborhood || !address.city || !address.state) {
+      setCheckoutState("error")
+      setCheckoutMessage("Preencha o endereço antes de continuar.")
+      notifyError("addressFetchError")
+      return
+    }
+
+    submitLockRef.current = true
+    setCheckoutState("loading")
+    setCheckoutMessage("Criando pedido...")
+    notifyInfo("awaitingConfirmation")
+
+    try {
+      const addressResponse = await fetch("/api/enderecos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(buildAddressPayload()),
+      })
+
+      if (!addressResponse.ok) {
+        const data = await addressResponse.json().catch(() => ({}))
+        throw new Error(data.error || "Falha ao criar endereço")
+      }
+
+      const savedAddress = await addressResponse.json()
+      notifySuccess("addressSaved")
+
+      const orderResponse = await fetch("/api/pedidos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customer_id: customerId,
+          address_id: savedAddress.id,
+          subtotal,
+          delivery_fee: deliveryFee,
+          notes: notes.trim() || undefined,
+        }),
+      })
+
+      if (!orderResponse.ok) {
+        const data = await orderResponse.json().catch(() => ({}))
+        throw new Error(data.error || "Falha ao criar pedido")
+      }
+
+      const order = await orderResponse.json()
+
+      const itemsResponse = await Promise.all(
+        items.map((item: CartItem) =>
+          fetch(`/api/pedidos/${order.id}/itens`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              product_id: String(item.id),
+              quantity: item.quantity,
+              notes: null,
+            }),
+          })
+        )
+      )
+
+      if (itemsResponse.some((response) => !response.ok)) {
+        throw new Error("Falha ao adicionar itens ao pedido")
+      }
+
+      notifySuccess("orderCreated")
+
+      if (paymentMethod === "pix") {
+        const paymentResponse = await fetch("/api/pagamentos", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            order_id: order.id,
+            method: "pix",
+          }),
+        })
+
+        if (!paymentResponse.ok) {
+          const data = await paymentResponse.json().catch(() => ({}))
+          throw new Error(data.error || "Falha no pagamento")
+        }
+
+        const payment = await paymentResponse.json()
+        setPaymentInfo({
+          qrCode: payment.qrCode,
+          qrCodeText: payment.qrCodeText,
+          expiresAt: new Date(payment.expiresAt).toISOString(),
+        })
+        const payload: PaymentNavigationPayload = {
+          orderId: order.id,
+          paymentId: payment.paymentId,
+          paymentMethod: "pix",
+          status: "aguardando",
+          total,
+          expiresAt: new Date(payment.expiresAt).toISOString(),
+          qrCode: payment.qrCode,
+          qrCodeText: payment.qrCodeText,
+        }
+        setPaymentPayload(payload)
+        setCheckoutState("success")
+        setCheckoutMessage("PIX gerado com sucesso")
+        notifyInfo("paymentProcessing")
+        router.push(`/pagamento-pix?orderId=${order.id}`)
+        return
+      }
+
+      const payload: PaymentNavigationPayload = {
+        orderId: order.id,
+        paymentMethod,
+        status: "pago",
+        total,
+      }
+      setPaymentPayload(payload)
+      setCheckoutState("success")
+      setCheckoutMessage("Pedido criado com sucesso")
+      notifySuccess("paymentApproved")
+      router.push(`/order-success?orderId=${order.id}`)
+    } catch (error) {
+      console.error(error)
+      setCheckoutState("error")
+      setCheckoutMessage(error instanceof Error ? error.message : "Falha ao processar o pedido")
+      notifyError("orderCreationError")
+    } finally {
+      submitLockRef.current = false
+    }
   }
+
+  useEffect(() => {
+    if (!paymentInfo?.expiresAt || !paymentPayload?.orderId || paymentMethod !== "pix") {
+      return
+    }
+
+    let cancelled = false
+    let intervalId: number | undefined
+
+    const pollPayment = async () => {
+      if (cancelled) return
+
+      try {
+        setPaymentPolling(true)
+        const response = await fetch(`/api/pagamentos/${paymentPayload.orderId}`)
+        if (!response.ok) return
+
+        const data = await response.json()
+
+        if (data.status === "confirmado") {
+          router.push(`/order-success?orderId=${paymentPayload.orderId}`)
+          return
+        }
+
+        if (data.status === "expirado") {
+          setCheckoutState("error")
+          setCheckoutMessage("O tempo para pagamento expirou.")
+          return
+        }
+      } catch {
+        setCheckoutState("error")
+      } finally {
+        setPaymentPolling(false)
+      }
+    }
+
+    void pollPayment()
+    intervalId = window.setInterval(() => {
+      void pollPayment()
+    }, 5000)
+
+    return () => {
+      cancelled = true
+      if (intervalId) window.clearInterval(intervalId)
+    }
+  }, [paymentInfo?.expiresAt, paymentPayload?.orderId, paymentMethod, router])
 
   if (items.length === 0) {
     return (
@@ -643,11 +891,28 @@ export function CheckoutScreen({ onBack }: CheckoutScreenProps) {
             <Button
               type="button"
               className="min-w-[46%] rounded-3xl py-5 text-base font-semibold"
-              onClick={handleConfirm}
+              onClick={handleCreateCheckout}
+              disabled={checkoutState === "loading"}
             >
-              Confirmar Pedido
+              {checkoutState === "loading" ? (
+                <span className="inline-flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" /> Processando
+                </span>
+              ) : (
+                "Confirmar Pedido"
+              )}
             </Button>
           </div>
+          {checkoutState === "error" && checkoutMessage ? (
+            <div className="rounded-2xl border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+              {checkoutMessage}
+            </div>
+          ) : null}
+          {paymentPolling ? (
+            <div className="flex items-center justify-center gap-2 rounded-2xl bg-secondary/40 px-4 py-3 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" /> Aguardando confirmação do pagamento
+            </div>
+          ) : null}
           <p className="text-center text-xs text-muted-foreground">
             Ao confirmar, seu pedido será enviado para preparo imediato.
           </p>

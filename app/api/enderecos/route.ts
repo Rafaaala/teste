@@ -7,6 +7,7 @@ import {
   getAddressesByCustomerId,
   createAddress,
 } from '@/lib/database/queries/addresses'
+import { geocodeAddress } from '@/lib/geolocation/geocode'
 import type { CreateAddressInput } from '@/types/database'
 
 function validateRequiredFields(body: CreateAddressInput): string | null {
@@ -131,9 +132,36 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: validationError }, { status: 400 })
     }
 
+    let latitude = body.latitude
+    let longitude = body.longitude
+
+    if (typeof latitude !== 'number' || typeof longitude !== 'number') {
+      const geocoded = await geocodeAddress(
+        body.street,
+        body.number,
+        body.city,
+        body.state
+      )
+
+      if (!geocoded) {
+        return NextResponse.json(
+          {
+            error:
+              'Não foi possível obter coordenadas para o endereço informado',
+          },
+          { status: 422 }
+        )
+      }
+
+      latitude = geocoded.latitude
+      longitude = geocoded.longitude
+    }
+
     const address = await createAddress({
       ...body,
       state: body.state.trim().toUpperCase(),
+      latitude,
+      longitude,
     })
     return NextResponse.json(address, { status: 201 })
   } catch (error) {

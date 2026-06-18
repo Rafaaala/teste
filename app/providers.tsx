@@ -3,6 +3,7 @@
 import { SessionProvider } from 'next-auth/react'
 import { ReactNode } from 'react'
 import { ThemeProvider } from '@/components/theme-provider'
+import { Toaster } from '@/components/ui/toaster'
 
 export function Providers({ children }: { children: ReactNode }) {
   return (
@@ -15,6 +16,7 @@ export function Providers({ children }: { children: ReactNode }) {
         storageKey="niran-theme"
       >
         {children}
+        <Toaster />
       </ThemeProvider>
     </SessionProvider>
   )
