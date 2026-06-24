@@ -1,0 +1,371 @@
+DOCUMENTAÇÃO DE API
+Sistema de Gestão — Restaurante Japonês
+Referência completa de endpoints para integração com o frontend
+Versão 1.0  |  Junho de 2026
+1. Visão Geral
+Esta documentação descreve todos os endpoints REST disponíveis na API do sistema. A base URL em desenvolvimento é http://localhost:3000. Em produção, será api.restaurante.com.br.
+Convenções utilizadas neste documento:
+Público — sem autenticação necessária. Acessível por qualquer cliente.
+Clerk (qualquer role) — requer sessão Clerk válida, independente do role.
+Admin / Gerente — restrito aos roles admin e gerente.
+Admin / Gerente / Garçom — acessível também ao garçom.
+Apenas Admin — restrito ao role admin.
+Todas as respostas de erro seguem o formato: { &quot;error&quot;: &quot;mensagem descritiva&quot; }
+2. Infraestrutura
+Health Check
+Método
+Endpoint
+Descrição
+Auth
+GET
+/api/health
+Verifica se o servidor e o banco estão respondendo. Retorna timestamp atual.
+Público
+3. Autenticação
+A autenticação é gerenciada pelo Clerk. Os endpoints abaixo sincronizam o usuário Clerk com o banco de dados interno e retornam o perfil com o role da equipe.
+Método
+Endpoint
+Descrição
+Auth
+POST
+/api/auth/sync
+Sincroniza o usuário autenticado no Clerk com a tabela users do banco. Deve ser chamado uma vez após o primeiro login.
+Clerk (qualquer role)
+GET
+/api/auth/me
+Retorna os dados do usuário atual: id, nome, email, role e status. Usado para inicializar o contexto de autenticação no frontend.
+Clerk (qualquer role)
+4. Cardápio
+Endpoints públicos para exibição do cardápio ao cliente final e endpoints protegidos para gestão pelo admin.
+Cardápio público
+Método
+Endpoint
+Descrição
+Auth
+GET
+/api/cardapio
+Retorna o cardápio completo agrupado por categoria, apenas com itens e categorias ativos. É o endpoint principal consumido pela tela de cardápio do cliente.
+Público
+Categorias
+Método
+Endpoint
+Descrição
+Auth
+GET
+/api/categorias
+Lista categorias ativas. Com ?all=true retorna também as inativas (uso admin).
+Público / Admin
+POST
+/api/categorias
+Cria nova categoria. Body: { name, description?, sort_order? }
+Admin / Gerente
+GET
+/api/categorias/:id
+Retorna uma categoria pelo ID.
+Público
+PATCH
+/api/categorias/:id
+Atualiza nome, descrição, ordem ou status ativo/inativo.
+Admin / Gerente
+DELETE
+/api/categorias/:id
+Soft delete — desativa a categoria sem apagar do banco.
+Admin / Gerente
+Produtos
+Método
+Endpoint
+Descrição
+Auth
+GET
+/api/produtos
+Lista todos os produtos com categoria (inclui inativos). Uso exclusivo do painel admin.
+Admin / Gerente
+POST
+/api/produtos
+Cria produto. Body: { category_id, name, description?, price, image_url?, sort_order? }. Registra preço inicial no histórico.
+Admin / Gerente
+GET
+/api/produtos/:id
+Retorna produto com nome da categoria embutido.
+Admin / Gerente
+PATCH
+/api/produtos/:id
+Atualiza produto. Se o preço mudar, registra automaticamente no histórico de preços.
+Admin / Gerente
+DELETE
+/api/produtos/:id
+Soft delete — produto permanece no histórico de pedidos anteriores.
+Admin / Gerente
+5. Clientes e Endereços
+Clientes de delivery são identificados pelo número de telefone. Não possuem conta no sistema — são criados automaticamente no checkout.
+Clientes
+Método
+Endpoint
+Descrição
+Auth
+GET
+/api/clientes
+Lista todos os clientes cadastrados.
+Admin / Gerente
+POST
+/api/clientes
+Cria cliente. Body: { name, phone (obrigatório), cpf? }.
+Público
+GET
+/api/clientes/:id
+Retorna cliente pelo ID.
+Admin / Gerente
+PATCH
+/api/clientes/:id
+Atualiza nome, telefone ou CPF do cliente.
+Admin / Gerente
+GET
+/api/clientes/telefone/:phone
+Busca cliente pelo telefone e retorna seus endereços salvos. Usado no checkout para identificar clientes recorrentes.
+Público
+Endereços
+Método
+Endpoint
+Descrição
+Auth
+GET
+/api/enderecos
+Lista endereços. Com ?customer_id=uuid filtra por cliente.
+Admin / Gerente
+POST
+/api/enderecos
+Cria endereço. Body: { customer_id, zip_code, street, number, neighborhood, city, state (UF), complement?, latitude?, longitude? }.
+Público
+GET
+/api/enderecos/:id
+Retorna endereço pelo ID.
+Admin / Gerente
+PATCH
+/api/enderecos/:id
+Atualiza campos do endereço. Estado é automaticamente convertido para maiúsculas.
+Admin / Gerente
+6. Pedidos — Delivery
+Fluxo completo de pedidos online. O pedido é criado com status pendente e atualizado conforme o pagamento e preparo avançam.
+Ciclo de vida: pendente → confirmado → em_preparo → saindo → entregue → cancelado
+Pedidos
+Método
+Endpoint
+Descrição
+Auth
+GET
+/api/pedidos
+Lista pedidos. Com ?customer_id=uuid filtra por cliente.
+Admin / Gerente
+POST
+/api/pedidos
+Cria pedido. Body: { customer_id, address_id, subtotal, delivery_fee?, notes? }. Valida automaticamente o raio de 20km via Haversine.
+Público
+GET
+/api/pedidos/historico
+Histórico paginado com filtros. Params: status, data_inicio (YYYY-MM-DD), data_fim, page, limit. Retorna breakdown com link da NFC-e.
+Admin / Gerente
+POST
+/api/pedidos/validar-localizacao
+Valida se lat/lng está dentro do raio de entrega sem criar registro. Body: { latitude, longitude }.
+Público
+GET
+/api/pedidos/:id
+Retorna pedido pelo ID.
+Admin / Gerente
+PATCH
+/api/pedidos/:id
+Atualiza status ou dados do pedido. Cancelamento exige cancellation_reason. Mudança de status dispara notificação WhatsApp automaticamente.
+Admin / Gerente
+Itens do Pedido
+Método
+Endpoint
+Descrição
+Auth
+GET
+/api/pedidos/:id/itens
+Lista itens de um pedido com snapshot de nome e preço.
+Admin / Gerente
+POST
+/api/pedidos/:id/itens
+Adiciona item. Body: { product_id, quantity, notes? }. Captura automaticamente nome e preço atual do produto.
+Público
+GET
+/api/pedidos/:id/itens/:itemId
+Retorna item específico.
+Admin / Gerente
+PATCH
+/api/pedidos/:id/itens/:itemId
+Atualiza status ou cancela item. Cancelamento exige cancel_reason.
+Admin / Gerente
+7. Mesas e Comandas — Salão
+Gestão do salão físico. Mesas existem permanentemente no sistema. Cada sessão representa uma comanda aberta em uma mesa.
+Ciclo de vida da comanda: aberta → fechamento_solicitado → fechada
+Mesas
+Método
+Endpoint
+Descrição
+Auth
+GET
+/api/tables
+Lista mesas. Com ?all=true inclui inativas. Status: disponivel, ocupada, bloqueada.
+Admin / Gerente / Garçom
+POST
+/api/tables
+Cria mesa. Body: { number, capacity, status?, is_active? }.
+Admin / Gerente
+GET
+/api/tables/:id
+Retorna mesa pelo ID.
+Admin / Gerente / Garçom
+PATCH
+/api/tables/:id
+Atualiza número, capacidade, status ou ativo/inativo.
+Admin / Gerente
+DELETE
+/api/tables/:id
+Soft delete — mesa permanece no histórico de comandas.
+Apenas Admin
+Sessões (Comandas)
+Método
+Endpoint
+Descrição
+Auth
+GET
+/api/sessions
+Lista todas as sessões abertas ou em fechamento.
+Admin / Gerente
+POST
+/api/sessions
+Abre comanda. Body: { table_id, guest_count?, service_fee_pct?, notes? }. Verifica se mesa está disponível e sem comanda ativa. Atualiza status da mesa para ocupada.
+Admin / Gerente / Garçom
+GET
+/api/sessions/:id
+Retorna sessão com totais calculados.
+Admin / Gerente / Garçom
+PATCH
+/api/sessions/:id
+Atualiza status. fechamento_solicitado: bloqueia adição de itens. fechada: libera a mesa e emite NFC-e.
+Admin / Gerente
+Itens da Comanda
+Método
+Endpoint
+Descrição
+Auth
+GET
+/api/sessions/:id/itens
+Lista itens da comanda em ordem de adição.
+Admin / Gerente / Garçom
+POST
+/api/sessions/:id/itens
+Adiciona item à comanda aberta. Body: { product_id, quantity, notes? }. Recalcula totais automaticamente. Loga impressão no terminal.
+Admin / Gerente / Garçom
+PATCH
+/api/sessions/:id/itens/:itemId
+Cancela item específico. Exige cancel_reason. Recalcula totais. Apenas gerente/admin.
+Admin / Gerente
+8. Pagamentos
+Integração com Mercado Pago. Suporta Pix (QR Code) e cartão de crédito/débito. O webhook confirma pagamentos de forma assíncrona.
+Método
+Endpoint
+Descrição
+Auth
+POST
+/api/pagamentos
+Inicia pagamento. Body: { order_id, method (pix|cartao_credito|cartao_debito), name, phone, token? (cartão), installments?, payment_method? }. Retorna QR Code para Pix ou status imediato para cartão.
+Público
+POST
+/api/webhooks/mercadopago
+Recebido automaticamente pelo Mercado Pago após confirmação de pagamento. Valida assinatura HMAC, atualiza status do pedido e dispara workers de NFC-e e WhatsApp.
+Mercado Pago (automático)
+9. Fechamento de Caixa
+Consolidado diário de recebimentos separado por delivery e salão, com breakdown por método de pagamento.
+Método
+Endpoint
+Descrição
+Auth
+GET
+/api/caixa/fechamento
+Retorna o fechamento do dia. Param: ?data=YYYY-MM-DD (padrão: hoje). Inclui totais por delivery e salão, breakdown por método (Pix, cartão), total do dia, notas fiscais emitidas e cancelamentos.
+Admin / Gerente
+Exemplo de resposta:
+{ &quot;data&quot;: &quot;2026-06-01&quot;, &quot;delivery&quot;: { &quot;quantidade&quot;: 12, &quot;total&quot;: 684.00, &quot;por_metodo&quot;: [...] }, &quot;salao&quot;: { &quot;quantidade&quot;: 8, &quot;total&quot;: 1120.00, &quot;por_metodo&quot;: [...] }, &quot;total_dia&quot;: 1804.00, &quot;total_notas&quot;: 20, &quot;total_cancelamentos&quot;: 2 }
+10. Configurações do Sistema
+Parâmetros operacionais editáveis pelo admin sem necessidade de deploy. Armazenados como chave-valor JSONB.
+Método
+Endpoint
+Descrição
+Auth
+GET
+/api/system_config
+Lista todas as configurações.
+Admin
+POST
+/api/system_config
+Cria configuração. Body: { key, value, description? }. Chave deve usar letras minúsculas e underscore.
+Apenas Admin
+GET
+/api/system_config/:key
+Retorna configuração pela chave.
+Admin
+PATCH
+/api/system_config/:key
+Atualiza valor de uma configuração existente.
+Apenas Admin
+DELETE
+/api/system_config/:key
+Remove configuração.
+Apenas Admin
+Chaves pré-configuradas no sistema:
+restaurant_lat / restaurant_lng — coordenadas do restaurante para cálculo do raio de entrega.
+delivery_radius_km — raio máximo de entrega em km (padrão: 20).
+service_fee_pct — taxa de serviço do salão em % (padrão: 10).
+pix_expiration_minutes — minutos até expiração do QR Code Pix (padrão: 30).
+restaurant_name / restaurant_cnpj / restaurant_ie — dados fiscais para emissão de NFC-e.
+11. Resumo de Roles por Módulo
+Módulo
+Público
+Garçom
+Gerente
+Admin
+Automático
+Cardápio (leitura)
+✓
+✓
+✓
+✓
+Cardápio (gestão)
+✓
+✓
+Clientes / Endereços
+✓
+✓
+✓
+Pedidos (criar/pagar)
+✓
+Pedidos (gerenciar)
+✓
+✓
+Mesas (visualizar)
+✓
+✓
+✓
+Mesas (gerenciar)
+✓
+✓
+Comandas (abrir/itens)
+✓
+✓
+✓
+Comandas (fechar)
+✓
+✓
+Pagamentos
+✓
+Webhook MP
+✓
+Fechamento de caixa
+✓
+✓
+Configurações
+✓
+Documento gerado automaticamente com base na implementação do backend. Para dúvidas sobre comportamento específico de cada endpoint, consulte os arquivos de teste em __tests__/.

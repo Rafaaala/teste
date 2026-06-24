@@ -1,0 +1,567 @@
+ESPECIFICAÇÃO DE TELAS
+Sistema de Gestão — Restaurante Japonês
+Guia completo de telas, features e comportamentos para o time de frontend
+Versão 1.0  |  Junho de 2026
+1. Visão Geral do Sistema de Telas
+O sistema possui três domínios de acesso via subdomínios distintos, cada um com seu conjunto de telas e perfil de usuário. Toda comunicação com o backend é feita via chamadas REST à API.
+Subdomínio
+Público-alvo
+Autenticação
+Telas principais
+cardapio.rest.com
+Cliente final
+Opcional (telefone)
+Cardápio, Checkout, Pagamento, Confirmação
+admin.rest.com
+Garçom, Gerente, Admin
+NextAuth (obrigatório)
+Login, Mesas, Comanda, Pedidos, Caixa, Config
+rest.com
+Qualquer visitante
+Nenhuma
+Redirect automático para cardapio.*
+Legenda usada neste documento:
+ PWA   Feature que deve funcionar como app instalável
+ ROLE   Feature restrita a roles específicos
+ FASE 2   Feature fora do escopo do MVP
+2. Domínio: cardapio.rest.com
+Aplicação pública e responsiva acessada pelo cliente final via navegador ou PWA. Não exige conta para navegar. O cliente é identificado pelo telefone no checkout.
+2.1. Tela — Cardápio Digital
+Rota: /  |  Pública  |  PWA
+Tela principal e mais importante do ponto de vista do cliente. Deve ser rápida, visualmente atraente e funcionar perfeitamente no mobile.
+Feature
+Descrição
+Endpoint(s)
+Header fixo
+Logo do restaurante, nome e botão do carrinho com contador de itens. Fixo ao rolar a página.
+—
+Navegação de categorias
+Abas ou carrossel horizontal com os nomes das categorias. Clique ancora a página na categoria correspondente.
+GET /api/cardapio
+Grade de produtos
+Cards com: foto, nome, descrição resumida e preço. Grid de 2 colunas no mobile, 3 no desktop.
+GET /api/cardapio
+Modal de produto
+Ao clicar no card: modal com foto em destaque, descrição completa, campo de observações e botão Adicionar ao carrinho com seletor de quantidade.
+—
+Carrinho flutuante
+Botão fixo no rodapé com total de itens e valor total. Clique abre drawer lateral com o resumo.
+—
+Drawer do carrinho
+Lista de itens com nome, quantidade e valor. Botão para remover item. Botão Finalizar pedido navega para Checkout.
+—
+Loading skeleton
+Enquanto a API carrega, exibir skeletons no lugar dos cards para evitar layout shift.
+—
+Estado vazio
+Sem itens ativos: mensagem amigável (ex: &apos;Atualizando o cardápio, volte em breve!&apos;).
+—
+Estados e Comportamentos
+Estado / Situação
+Comportamento esperado na UI
+Produto indisponível
+Não exibir na listagem — a API já filtra itens inativos.
+Categoria sem produtos
+Não exibir a aba da categoria se não houver produtos ativos nela.
+Offline (PWA)
+Cache do Service Worker mantém cardápio da última visita. Banner avisa modo offline. Checkout desabilitado.
+Erro de API
+Toast de erro com botão Tentar novamente. A tela não quebra.
+2.2. Tela — Checkout
+Rota: /checkout  |  Pública
+Tela de finalização do pedido. O cliente informa dados, endereço e método de pagamento. Fluxo crítico — qualquer fricção aqui é perda de venda.
+Feature
+Descrição
+Endpoint(s)
+Resumo do pedido
+Lista de itens com quantidades e valores. Subtotal, taxa de entrega e total claramente visíveis. Botão para voltar ao cardápio.
+—
+Identificação por telefone
+Campo de telefone é o primeiro do formulário. Após digitar, buscar cliente e preencher nome automaticamente se já existir.
+GET /api/clientes/telefone/:phone
+Formulário de dados
+Campos: nome completo, telefone, CPF (opcional). Se cliente já existe, campos pré-preenchidos e editáveis.
+POST /api/clientes, PATCH /api/clientes/:id
+Botão de localização
+Botão &apos;Usar minha localização&apos; aciona navigator.geolocation. Validar raio via API e exibir distância calculada.
+POST /api/pedidos/validar-localizacao
+Endereço salvo
+Se cliente tem endereços, exibir lista para seleção rápida. Opção de cadastrar novo.
+GET /api/clientes/telefone/:phone
+Endereço manual
+Formulário: CEP (auto-preenchimento via ViaCEP), rua, número, complemento, bairro, cidade, UF.
+POST /api/enderecos
+Seleção de pagamento
+Dois botões de escolha visual: Pix (QR Code) e Cartão. Com ícones representativos.
+—
+Botão Finalizar
+Cria o pedido e redireciona para a tela de pagamento correta.
+POST /api/pedidos, POST /api/pagamentos
+Estados e Comportamentos
+Estado / Situação
+Comportamento esperado na UI
+Endereço fora do raio
+Mensagem com distância real (ex: &apos;Seu endereço fica a 34km. Atendemos até 20km.&apos;). Botão Finalizar bloqueado.
+Permissão de GPS negada
+Ocultar botão de localização. Manter apenas o formulário manual.
+Carrinho vazio
+Redirecionar automaticamente para o cardápio.
+CEP inválido
+Erro inline no campo CEP. Não bloquear o formulário inteiro.
+Cliente novo
+Criar cliente antes do pedido: POST /api/clientes → POST /api/enderecos → POST /api/pedidos.
+2.3. Tela — Pagamento Pix
+Rota: /pagamento/pix  |  Pública
+Exibida após escolher Pix no checkout. Simples, clara e que transmita confiança ao cliente.
+Feature
+Descrição
+Endpoint(s)
+QR Code
+Imagem base64 retornada pela API em tamanho adequado para leitura pelo celular.
+POST /api/pagamentos
+Copia e Cola
+Campo de texto com o código Pix e botão Copiar com feedback visual (ícone muda para check por 2 segundos).
+POST /api/pagamentos
+Timer de expiração
+Contador regressivo mostrando o tempo restante (30 minutos). Ao expirar: aviso vermelho e opção de gerar novo Pix.
+—
+Polling de status
+A cada 5 segundos, verificar status do pagamento. Ao confirmar: redirect automático para Confirmação.
+GET /api/pedidos/:id
+Valor e número
+Total do pedido e número do pedido exibidos claramente.
+—
+Instrução clara
+Texto: &apos;Abra seu app do banco → Pix → Ler QR Code&apos;.
+—
+Estados e Comportamentos
+Estado / Situação
+Comportamento esperado na UI
+Pix expirado
+Banner vermelho: &apos;QR Code expirado&apos;. Botões: Gerar novo Pix / Voltar ao checkout.
+Pagamento confirmado
+Animação de sucesso (check verde) e redirect automático em 2 segundos para Confirmação.
+Erro na geração do QR Code
+Toast de erro com botão Tentar novamente.
+2.4. Tela — Pagamento Cartão
+Rota: /pagamento/cartao  |  Pública
+Usa o SDK do Mercado Pago no frontend para tokenizar o cartão com segurança. Os dados do cartão nunca chegam ao backend próprio.
+Feature
+Descrição
+Endpoint(s)
+SDK Mercado Pago
+Carregar o SDK via script tag. Inicializar com a public key do MP.
+—
+Formulário de cartão
+Campos gerenciados pelo SDK: número do cartão (com máscara e ícone da bandeira), nome impresso, validade MM/AA e CVV.
+—
+Parcelas
+Dropdown com opções de parcelamento — o SDK retorna as opções disponíveis após o número do cartão ser digitado.
+—
+Botão Pagar
+Desabilitado até o formulário estar válido. Ao clicar: gera token via SDK e chama a API.
+POST /api/pagamentos
+Feedback
+Aprovado: redirect para Confirmação. Recusado: mensagem de erro com opções Tentar novamente / Pagar com Pix.
+—
+Estados e Comportamentos
+Estado / Situação
+Comportamento esperado na UI
+Cartão aprovado
+Animação de sucesso e redirect imediato para Confirmação.
+Cartão recusado
+Mensagem do motivo (ex: &apos;Saldo insuficiente&apos;). Botões: Tentar novamente / Pagar com Pix.
+Dados inválidos
+Validação inline campo a campo antes de submeter.
+Erro de rede
+Toast de erro. Botão Tentar novamente. Sem risco de cobrança duplicada.
+2.5. Tela — Confirmação de Pedido
+Rota: /confirmacao/:orderId  |  Pública
+Tela de sucesso exibida após pagamento confirmado. Gera confiança e mantém o cliente informado sobre o andamento do pedido.
+Feature
+Descrição
+Endpoint(s)
+Animação de sucesso
+Ícone de check animado para confirmar visualmente que o pedido foi recebido.
+—
+Número do pedido
+Número do pedido em destaque para referência futura.
+GET /api/pedidos/:id
+Resumo do pedido
+Lista de itens, total pago e endereço de entrega.
+GET /api/pedidos/:id
+Rastreio de status
+Indicador visual do ciclo: Confirmado → Em preparo → Saindo → Entregue. Polling a cada 10 segundos.
+GET /api/pedidos/:id
+Link da NFC-e
+Botão para abrir o DANFE (PDF) quando emitido. Oculto até invoice_status = autorizada.
+GET /api/pedidos/:id
+Aviso WhatsApp
+Banner: &apos;Você receberá notificações no WhatsApp conforme seu pedido avança.&apos;
+—
+Novo pedido
+Botão para retornar ao cardápio.
+—
+3. Domínio: admin.rest.com
+Aplicação interna da equipe. Requer autenticação via NextAuth. O middleware valida o role e redireciona para as telas permitidas conforme o perfil.
+Role
+Telas acessíveis
+Restrições
+admin
+Todas as telas
+Acesso irrestrito
+gerente
+Mesas, Pedidos, Caixa, Cardápio
+Não acessa Usuários e Configurações do sistema
+garcom
+Mesas, Comanda
+Abre mesa, adiciona itens e solicita fechamento apenas
+motoboy
+Rotas de entrega (Fase 2)
+Somente visualiza pedidos com status saindo
+3.1. Tela — Login
+Rota: /login  |  Pública (redireciona se já autenticado)
+Acesso da equipe interna. Não é acessada pelo cliente final.
+Feature
+Descrição
+Endpoint(s)
+Formulário de login
+Campos: telefone ou email. Botão Entrar. Logo do restaurante em destaque.
+POST /api/auth/login
+Validação inline
+Erros de campo exibidos abaixo do input, sem submeter o formulário.
+—
+Redirect pós-login
+Conforme o role: garçom → /mesas, gerente/admin → /pedidos.
+GET /api/auth/me
+Sessão persistente
+NextAuth mantém sessão via cookie JWT. Revisitar a URL redireciona sem pedir login novamente.
+—
+Mensagem de erro
+Credenciais inválidas: toast genérico sem revelar qual campo está errado.
+—
+3.2. Tela — Mapa de Mesas
+Rota: /mesas  |  Garçom, Gerente, Admin
+Visão geral do salão físico. Tela inicial para garçons e gerentes. Deve refletir em tempo real o status de cada mesa.
+Feature
+Descrição
+Endpoint(s)
+Grade de mesas
+Cards para cada mesa com: número, capacidade e status visual com cor (verde=disponível, vermelho=ocupada, amarelo=conta solicitada, cinza=bloqueada).
+GET /api/tables
+Mesa ocupada — info
+Card mostra número de pessoas, tempo aberto (ex: &apos;1h 23min&apos;) e total parcial da comanda.
+GET /api/sessions
+Abrir mesa
+Clique em mesa disponível: modal pedindo número de pessoas. Confirmar navega para a Comanda.
+POST /api/sessions
+Acessar comanda
+Clique em mesa ocupada: navega diretamente para a tela de Comanda daquela mesa.
+—
+Polling automático
+Atualização a cada 15 segundos sem recarregar a página.
+GET /api/tables, GET /api/sessions
+Adicionar mesa
+Botão (gerente/admin): modal com campos número e capacidade.
+POST /api/tables
+Bloquear/desbloquear
+Menu de contexto (gerente/admin): bloquear ou desbloquear mesa.
+PATCH /api/tables/:id
+Legenda
+Legenda visual fixa explicando as cores de status.
+—
+Estados e Comportamentos
+Estado / Situação
+Comportamento esperado na UI
+Mesa disponível
+Card verde. Clique abre modal para iniciar comanda.
+Mesa ocupada
+Card vermelho com número de pessoas, tempo aberto e total parcial. Clique navega para a comanda.
+Conta solicitada
+Card amarelo — garçom pediu fechamento, aguardando gerente confirmar pagamento.
+Mesa bloqueada
+Card cinza escuro com ícone de cadeado. Não abre comanda. Gerente/admin desbloqueiam.
+3.3. Tela — Comanda da Mesa
+Rota: /mesas/:sessionId  |  Garçom, Gerente, Admin
+Tela central da operação do salão. O garçom adiciona itens progressivamente. O gerente fecha a conta. Deve ser rápida e funcionar bem em tablet ou celular.
+Feature
+Descrição
+Endpoint(s)
+Header da comanda
+Número da mesa, número de pessoas, horário de abertura e nome do garçom que abriu. Botão Voltar para o mapa.
+GET /api/sessions/:id
+Lista de itens
+Itens com: nome, quantidade, valor unitário, subtotal e status (pendente/em preparo/pronto/cancelado). Cancelados com visual riscado e cinza.
+GET /api/sessions/:id/itens
+Adicionar item
+Botão em destaque: modal com busca por nome, filtro por categoria, quantidade e observações.
+GET /api/cardapio, POST /api/sessions/:id/itens
+Totais automáticos
+Subtotal, taxa de serviço (%) e total recalculados a cada item adicionado ou cancelado.
+GET /api/sessions/:id
+Cancelar item
+Ícone de lixeira por item (gerente/admin). Modal exige motivo do cancelamento.
+PATCH /api/sessions/:id/itens/:itemId
+Pedir conta (garçom)
+Botão &apos;Pedir conta&apos;: muda status para fechamento_solicitado. Bloqueia novos itens.
+PATCH /api/sessions/:id
+Confirmar pagamento (gerente)
+Botão &apos;Confirmar pagamento&apos;: fecha a comanda, libera a mesa e aciona NFC-e.
+PATCH /api/sessions/:id
+Versão para impressão
+Botão para abrir versão printável da comanda via CSS print.
+—
+Estados e Comportamentos
+Estado / Situação
+Comportamento esperado na UI
+Comanda aberta
+Todos os botões disponíveis para o role correspondente.
+Fechamento solicitado
+Banner amarelo: &apos;Conta solicitada&apos;. Botão de adicionar item desabilitado. Gerente/admin veem botão de confirmar pagamento.
+Comanda fechada
+Tela read-only com todos os itens e totais. Link para a NFC-e quando disponível.
+Item cancelado
+Texto riscado e cor cinza. Totais recalculados automaticamente.
+Comanda vazia
+Mensagem convidando a adicionar o primeiro item. Botão de adicionar em destaque.
+3.4. Tela — Histórico de Pedidos (Delivery)
+Rota: /pedidos  |  Gerente, Admin
+Painel de monitoramento e histórico de todos os pedidos online. Permite ao gerente acompanhar e atualizar o status de cada pedido em tempo real.
+Feature
+Descrição
+Endpoint(s)
+Tabela de pedidos
+Colunas: #pedido, cliente, itens (contagem), valor total, método de pagamento, status (badge colorido), data/hora e ícone de NFC-e.
+GET /api/pedidos/historico
+Filtros
+Por status e por período (data início / data fim). Aplicação em tempo real sem recarregar a página.
+GET /api/pedidos/historico?status=&amp;data_inicio=&amp;data_fim=
+Badges de status
+Cores padronizadas: pendente (cinza), confirmado (azul), em_preparo (laranja), saindo (roxo), entregue (verde), cancelado (vermelho).
+—
+Avançar status
+Botão de ação por linha: avança para o próximo status com confirmação em modal.
+PATCH /api/pedidos/:id
+Cancelar pedido
+Botão (gerente/admin): modal exigindo motivo de cancelamento.
+PATCH /api/pedidos/:id
+Ver detalhes
+Clique na linha expande painel com: itens completos, endereço de entrega, dados do cliente e histórico de mudanças de status.
+GET /api/pedidos/:id, GET /api/pedidos/:id/itens
+Link NFC-e
+Ícone de nota fiscal que abre o DANFE (PDF) em nova aba. Aparece somente quando invoice_status = autorizada.
+—
+Paginação
+Componente de paginação padrão. Padrão de 20 itens por página.
+GET /api/pedidos/historico?page=&amp;limit=
+Fluxo de atualização de status
+O gerente avança o status manualmente. Cada mudança dispara notificação WhatsApp ao cliente automaticamente:
+pendente → confirmado: após verificar que o pagamento foi recebido
+confirmado → em_preparo: quando a cozinha inicia o preparo
+em_preparo → saindo: quando o motoboy sai com o pedido
+saindo → entregue: quando o motoboy confirma a entrega
+3.5. Tela — Fechamento de Caixa
+Rota: /caixa  |  Gerente, Admin
+Painel de fechamento diário consultado ao final do expediente para conferir os recebimentos do dia.
+Feature
+Descrição
+Endpoint(s)
+Seletor de data
+DatePicker com padrão em hoje. Ao mudar a data, recarrega todos os cards automaticamente.
+GET /api/caixa/fechamento?data=YYYY-MM-DD
+Card Delivery
+Total de pedidos de delivery, valor total recebido e breakdown por método (Pix / Cartão / Dinheiro).
+GET /api/caixa/fechamento
+Card Salão
+Total de comandas fechadas, valor total e breakdown por método de pagamento.
+GET /api/caixa/fechamento
+Card Total do Dia
+Soma de Delivery + Salão exibida em destaque. É o número principal do fechamento.
+GET /api/caixa/fechamento
+Card Notas Fiscais
+Quantidade de NFC-e autorizadas no dia.
+GET /api/caixa/fechamento
+Card Cancelamentos
+Quantidade e valor total cancelados no dia, exibidos em vermelho.
+GET /api/caixa/fechamento
+Botão Imprimir
+Abre versão para impressão do fechamento via CSS print.
+—
+Gráfico por método
+Gráfico de pizza ou barras com distribuição por método de pagamento. (Fase 2)
+—
+Layout sugerido
+Topo: seletor de data + botão imprimir. Corpo: grid de cards 2×3 (Delivery, Salão, Total do Dia, Notas Fiscais, Cancelamentos, Ticket Médio). Rodapé: tabela detalhada dos pagamentos do dia agrupados por hora.
+3.6. Tela — Gestão do Cardápio
+Rota: /cardapio  |  Gerente, Admin
+Painel para criar, editar e organizar o cardápio. As mudanças refletem imediatamente no cardápio público do cliente.
+Feature
+Descrição
+Endpoint(s)
+Painel de categorias
+Lista lateral de categorias com nome e status. Clique seleciona e exibe os produtos. Drag-and-drop para reordenar.
+GET /api/categorias?all=true
+Criar categoria
+Botão + : modal com campos nome, descrição e ordem de exibição.
+POST /api/categorias
+Editar/desativar categoria
+Ícone de edição: modal com todos os campos. Toggle para ativar/desativar.
+PATCH /api/categorias/:id
+Grade de produtos
+Cards da categoria selecionada, incluindo inativos com visual diferenciado (opacidade reduzida).
+GET /api/produtos
+Criar produto
+Botão + : formulário completo com nome, descrição, preço, foto (upload), categoria e ordem.
+POST /api/produtos
+Editar produto
+Clique no card: modal de edição. Mudança de preço registra no histórico automaticamente.
+PATCH /api/produtos/:id
+Toggle ativo/inativo
+Toggle no card. Inativo não aparece no cardápio público mas permanece no histórico.
+PATCH /api/produtos/:id
+Upload de foto
+Campo de upload com preview imediato. Enviar para Cloudflare R2. Barra de progresso durante upload.
+—
+3.7. Tela — Gestão de Usuários
+Rota: /usuarios  |  Apenas Admin
+Painel exclusivo do administrador para gerenciar a equipe. Garçons, gerentes e motoboys são cadastrados aqui.
+Feature
+Descrição
+Endpoint(s)
+Tabela de usuários
+Colunas: nome, email, telefone, role (badge), status ativo/inativo, data de cadastro.
+GET /api/usuarios (a implementar)
+Criar usuário
+Modal: nome, email, telefone, role (dropdown) e senha inicial.
+POST /api/usuarios (a implementar)
+Editar usuário
+Editar todos os campos. Senha opcional (apenas se quiser trocar).
+PATCH /api/usuarios/:id (a implementar)
+Toggle ativo/inativo
+Usuário inativo não consegue fazer login. Não apaga do banco.
+PATCH /api/usuarios/:id (a implementar)
+Filtro por role
+Filtro rápido por tipo: garçom, gerente, motoboy, admin.
+—
+Atenção: os endpoints de usuários (/api/usuarios) ainda não foram implementados no backend. O frontend pode prever as telas, mas os endpoints precisarão ser criados antes da integração.
+3.8. Tela — Configurações do Sistema
+Rota: /configuracoes  |  Apenas Admin
+Painel para ajustar parâmetros operacionais do sistema sem necessidade de deploy.
+Feature
+Descrição
+Endpoint(s)
+Raio de entrega
+Campo numérico em km. Valor atual exibido. Salvar atualiza imediatamente o raio válido no checkout.
+PATCH /api/system_config/delivery_radius_km
+Taxa de serviço do salão
+Campo numérico em %. Aplicada em todas as novas comandas a partir do momento da alteração.
+PATCH /api/system_config/service_fee_pct
+Dados do restaurante
+Campos: nome, CNPJ, Inscrição Estadual. Usados na emissão das NFC-e.
+PATCH /api/system_config/restaurant_name, restaurant_cnpj, restaurant_ie
+Coordenadas do restaurante
+Campos de latitude e longitude. Usados no cálculo do raio de entrega. Botão para usar localização atual.
+PATCH /api/system_config/restaurant_lat, restaurant_lng
+Expiração do Pix
+Campo numérico em minutos. Padrão: 30 minutos.
+PATCH /api/system_config/pix_expiration_minutes
+Visualizar todas as configs
+Tabela com todas as chaves, valores atuais e descrições para referência.
+GET /api/system_config
+4. Componentes Globais
+Componentes reutilizáveis que aparecem em múltiplas telas. Devem ser construídos uma única vez e usados consistentemente em todo o sistema.
+Feature
+Descrição
+Endpoint(s)
+Toast de notificação
+Feedback de ações: sucesso (verde), erro (vermelho), aviso (amarelo). Auto-fecha em 4 segundos. Posição: canto superior direito.
+—
+Modal de confirmação
+Modal genérico com título, mensagem, botão Confirmar (destrutivo em vermelho) e Cancelar. Usado em ações irreversíveis.
+—
+Modal de formulário
+Modal com campos editáveis. Botões Salvar e Cancelar. Validação inline.
+—
+Skeleton loader
+Placeholder animado para carregamentos. Mesmo layout do conteúdo final para evitar layout shift.
+—
+Paginação
+Componente padrão: anterior / número de página / próximo. Exibir total de registros.
+—
+Empty state
+Componente para listas vazias com ícone ilustrativo, mensagem e ação sugerida (ex: botão Criar primeiro produto).
+—
+Badge de status
+Componente com cores padronizadas para status de pedidos, mesas e comandas. Reutilizado em todas as listagens.
+—
+DatePicker
+Seletor de data para filtros de histórico e fechamento de caixa. Suporte mobile.
+—
+Sidebar de navegação
+Menu lateral fixo no admin com links para telas permitidas pelo role. Recolhível em mobile.
+—
+Header do admin
+Barra superior com logo, nome e role do usuário, e botão de logout.
+—
+Indicador de loading global
+Barra de progresso fina no topo da página durante requisições de API.
+—
+5. Requisitos PWA
+O sistema deve funcionar como Progressive Web App em ambos os domínios. O cliente pode instalar o cardápio na tela inicial do celular. A equipe pode instalar o painel admin no tablet ou celular.
+Feature
+Descrição
+Endpoint(s)
+manifest.json
+Configurar: name, short_name, icons (192×192 e 512×512), display: standalone, theme_color: #1A1A2E, start_url, background_color.
+—
+Service Worker
+Usar next-pwa para geração automática. Cache: stale-while-revalidate para assets, network-first para chamadas de API.
+—
+Ícones
+Gerar ícones do restaurante em múltiplos tamanhos: 72, 96, 128, 144, 152, 192, 384 e 512px.
+—
+Banner de instalação
+Banner nativo do navegador no Android. No iOS: instrução manual exibida em modal (Compartilhar → Adicionar à tela de início).
+—
+Offline — cardápio
+Cache do último cardápio. Banner amarelo informando modo offline. Botão de finalizar pedido desabilitado.
+—
+Offline — admin
+Telas de leitura funcionam com cache. Ações de escrita exibem aviso de conexão necessária.
+—
+Splash screen
+Tela de carregamento com logo do restaurante enquanto o PWA inicializa.
+—
+Notificações push
+Fase 2 — substituiria o WhatsApp como canal de notificações para clientes que instalaram o PWA.
+—
+6. Telas e Features — Fase 2
+Funcionalidades previstas mas fora do escopo do MVP. Documentadas aqui para que o frontend seja construído considerando sua existência futura.
+Feature
+Descrição
+Endpoint(s)
+Tela do Motoboy
+Painel exclusivo para o motoboy ver e confirmar entregas. Mapa com rota otimizada (Leaflet + GraphHopper). Botão de confirmar entrega.
+Fase 2
+KDS — Cozinha
+Tela para a cozinha visualizar pedidos em tempo real sem papel. Substituiria a impressão de comanda.
+Fase 2
+Analytics / BI
+Dashboard com gráficos: faturamento diário, ticket médio, curva ABC de produtos, giro de mesas e comparativo delivery vs salão.
+Fase 2
+QR Code na mesa
+Cliente escaneia QR Code da mesa e acessa cardápio com mesa já identificada. Pedido vai diretamente para a comanda.
+Fase 2
+Impressão térmica
+Integração com Computador Central e impressoras ESC/POS. Substituiria simulação no terminal.
+Fase 2
+Point Smart
+Espelhamento do valor na maquineta Mercado Pago para pagamento presencial no salão.
+Fase 2
+Exportação de relatórios
+Exportar histórico de pedidos e fechamento de caixa como CSV ou PDF.
+Fase 2
+Notificações push (PWA)
+Substituir ou complementar o WhatsApp com notificações push nativas para clientes com PWA instalado.
+Fase 2
+Documento gerado com base na arquitetura completa do backend e nas decisões de produto tomadas ao longo do desenvolvimento. Para dúvidas sobre endpoints, consultar o documento de API Endpoints.
