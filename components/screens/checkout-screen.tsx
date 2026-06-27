@@ -257,14 +257,6 @@ export function CheckoutScreen({ onBack }: CheckoutScreenProps) {
   const [guestPhone, setGuestPhone] = useState("");
   const [guestName, setGuestName] = useState("");
   const [customerIdentified, setCustomerIdentified] = useState(false);
-  const [identificationStep, setIdentificationStep] = useState<
-    "idle" | "loading" | "error"
-  >("idle");
-  const [identificationMessage, setIdentificationMessage] = useState("");
-
-  // Para delivery sem login, permitir identificação por telefone
-  const isGuestCheckout = !customerId && deliveryMethod === "delivery";
-  const hasCustomerInfo = customerId || (customerIdentified && guestPhone);
 
   const formatMoney = (value: number) =>
     `R$ ${value.toFixed(2).replace(".", ",")}`;
@@ -330,67 +322,10 @@ export function CheckoutScreen({ onBack }: CheckoutScreenProps) {
     state: address.state,
   });
 
-  const handleIdentifyGuest = async () => {
-    if (!guestPhone || !guestName.trim()) {
-      setIdentificationMessage("Preencha nome e telefone");
-      return;
-    }
-
-    setIdentificationStep("loading");
-    try {
-      // Buscar cliente existente por telefone
-      const searchRes = await fetch(
-        `/api/clientes?phone=${guestPhone.replace(/\D/g, "")}`,
-      );
-      let customerId: string;
-
-      if (searchRes.ok) {
-        const customer = await searchRes.json();
-        customerId = customer.id;
-        setIdentificationMessage("Cliente encontrado!");
-      } else {
-        // Criar novo cliente
-        const createRes = await fetch("/api/clientes", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: guestName,
-            phone: guestPhone.replace(/\D/g, ""),
-          }),
-        });
-
-        if (!createRes.ok) throw new Error("Erro ao criar cliente");
-
-        const newCustomer = await createRes.json();
-        customerId = newCustomer.id;
-        setIdentificationMessage("Cliente criado com sucesso!");
-      }
-
-      setCustomerIdentified(true);
-      setIdentificationStep("idle");
-      // Armazenar customerId na sessão local
-      sessionStorage.setItem("guestCustomerId", customerId);
-    } catch (error) {
-      console.error(error);
-      setIdentificationStep("error");
-      setIdentificationMessage("Erro ao identificar cliente");
-    }
-  };
-
+  
   const handleCreateCheckout = async () => {
     if (submitLockRef.current || checkoutState === "loading") return;
 
-    // Permitir checkout sem login apenas para delivery
-    const finalCustomerId =
-      customerId ||
-      (customerIdentified ? sessionStorage.getItem("guestCustomerId") : null);
-
-    if (!finalCustomerId) {
-      setCheckoutState("error");
-      setCheckoutMessage("Identifique-se para continuar o pedido.");
-      notifyError("orderCreationError");
-      return;
-    }
 
     if (
       !address.cep ||
@@ -417,7 +352,7 @@ export function CheckoutScreen({ onBack }: CheckoutScreenProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...buildAddressPayload(),
-          customer_id: finalCustomerId,
+          // customer_id: finalCustomerId,
         }),
       });
 
@@ -433,7 +368,9 @@ export function CheckoutScreen({ onBack }: CheckoutScreenProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          customer_id: finalCustomerId,
+          // customer_id: finalCustomerId, // ou null, dependendo do backend
+          customer_name: guestName,
+          customer_phone: guestPhone,
           address_id: savedAddress.id,
           subtotal,
           delivery_fee: deliveryFee,
@@ -639,80 +576,37 @@ export function CheckoutScreen({ onBack }: CheckoutScreenProps) {
 
       <div className="flex-1 overflow-y-auto px-4 pb-40 pt-4">
         <section className="space-y-4">
-          {/* Identificação de cliente para pedidos sem login */}
-          {isGuestCheckout && !customerIdentified && (
-            <div className="rounded-3xl border border-primary bg-primary/5 p-4 shadow-sm">
-              <div className="mb-4">
-                <p className="text-sm font-semibold text-foreground">
-                  Identifique-se
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  Preencha seus dados para continuar o pedido
-                </p>
+          <div className="rounded-3xl border border-border bg-card p-4 shadow-sm">
+            <div className="mb-4">
+              <p className="text-sm font-semibold">
+                Identificação do pedido
+              </p>
+
+              <p className="text-sm text-muted-foreground">
+                Informe seu nome e telefone para identificarmos o pedido.
+              </p>
+            </div>
+
+            <div className="grid gap-4">
+              <div>
+                <label>Nome</label>
+                <Input
+                  value={guestName}
+                  onChange={(e) => setGuestName(e.target.value)}
+                  placeholder="Seu nome"
+                />
               </div>
 
-              <div className="grid gap-4">
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-foreground">
-                    Nome completo
-                  </label>
-                  <Input
-                    value={guestName}
-                    onChange={(e) => setGuestName(e.target.value)}
-                    placeholder="Digite seu nome"
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-foreground">
-                    Telefone
-                  </label>
-                  <Input
-                    value={guestPhone}
-                    onChange={(e) =>
-                      setGuestPhone(
-                        e.target.value.replace(/\D/g, "").slice(0, 11),
-                      )
-                    }
-                    placeholder="(00) 99999-9999"
-                    inputMode="tel"
-                  />
-                </div>
-
-                {identificationMessage && (
-                  <p
-                    className={cn(
-                      "text-sm",
-                      identificationStep === "error"
-                        ? "text-destructive"
-                        : "text-emerald-600 dark:text-emerald-400",
-                    )}
-                  >
-                    {identificationMessage}
-                  </p>
-                )}
-
-                <Button
-                  type="button"
-                  onClick={handleIdentifyGuest}
-                  disabled={
-                    identificationStep === "loading" ||
-                    !guestName ||
-                    !guestPhone
-                  }
-                  className="rounded-2xl"
-                >
-                  {identificationStep === "loading" ? (
-                    <span className="inline-flex items-center gap-2">
-                      <Loader2 className="h-4 w-4 animate-spin" /> Identificando
-                    </span>
-                  ) : (
-                    "Continuar"
-                  )}
-                </Button>
+              <div>
+                <label>Telefone</label>
+                <Input
+                  value={guestPhone}
+                  onChange={(e) => setGuestPhone(e.target.value)}
+                  placeholder="(83) 99999-9999"
+                />
               </div>
             </div>
-          )}
+          </div>
 
           {customerIdentified && (
             <div className="rounded-3xl border border-emerald-500 bg-emerald-500/10 p-4 shadow-sm flex items-center gap-3">
@@ -1118,8 +1012,7 @@ export function CheckoutScreen({ onBack }: CheckoutScreenProps) {
                 className="min-w-[46%] rounded-3xl py-5 text-base font-semibold"
                 onClick={handleCreateCheckout}
                 disabled={
-                  checkoutState === "loading" ||
-                  (isGuestCheckout && !customerIdentified)
+                  checkoutState === "loading" 
                 }
               >
                 {checkoutState === "loading" ? (

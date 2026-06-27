@@ -63,18 +63,18 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url)
     const customerId = searchParams.get('customer_id')
 
-    if (customerId) {
-      const customer = await getCustomerById(customerId)
-      if (!customer) {
-        return NextResponse.json(
-          { error: 'Cliente não encontrado' },
-          { status: 404 }
-        )
-      }
+    // if (customerId) {
+    //   const customer = await getCustomerById(customerId)
+    //   if (!customer) {
+    //     return NextResponse.json(
+    //       { error: 'Cliente não encontrado' },
+    //       { status: 404 }
+    //     )
+    //   }
 
-      const addresses = await getAddressesByCustomerId(customerId)
-      return NextResponse.json(addresses)
-    }
+    //   const addresses = await getAddressesByCustomerId(customerId)
+    //   return NextResponse.json(addresses)
+    // }
 
     const parsed = parsePagination(searchParams)
     if ('error' in parsed) {
@@ -112,20 +112,20 @@ export async function POST(req: Request) {
   try {
     const body: CreateAddressInput = await req.json()
 
-    if (!body.customer_id) {
-      return NextResponse.json(
-        { error: 'Cliente é obrigatório' },
-        { status: 400 }
-      )
-    }
+    // if (!body.customer_id) {
+    //   return NextResponse.json(
+    //     { error: 'Cliente é obrigatório' },
+    //     { status: 400 }
+    //   )
+    // }
 
-    const customer = await getCustomerById(body.customer_id)
-    if (!customer) {
-      return NextResponse.json(
-        { error: 'Cliente não encontrado' },
-        { status: 404 }
-      )
-    }
+    // const customer = await getCustomerById(body.customer_id)
+    // if (!customer) {
+    //   return NextResponse.json(
+    //     { error: 'Cliente não encontrado' },
+    //     { status: 404 }
+    //   )
+    // }
 
     const validationError = validateRequiredFields(body)
     if (validationError) {
