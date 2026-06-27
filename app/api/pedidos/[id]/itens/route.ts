@@ -11,10 +11,11 @@ import type { CreateOrderItemBody } from '@/types/database'
 // GET /api/pedidos/:id/itens
 export async function GET(
   _req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const order = await getOrderById(params.id)
+    const { id } = await params
+    const order = await getOrderById(id)
     if (!order) {
       return NextResponse.json(
         { error: 'Pedido não encontrado' },
@@ -22,7 +23,7 @@ export async function GET(
       )
     }
 
-    const items = await getOrderItemsByOrderId(params.id)
+    const items = await getOrderItemsByOrderId(id)
     return NextResponse.json(items)
   } catch (error) {
     console.error('[GET /api/pedidos/:id/itens]', error)
@@ -36,9 +37,10 @@ export async function GET(
 // POST /api/pedidos/:id/itens
 export async function POST(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const body: CreateOrderItemBody = await req.json()
 
     if (!body.product_id) {
@@ -55,7 +57,7 @@ export async function POST(
       )
     }
 
-    const deps = await validateOrderAndProduct(params.id, body.product_id)
+    const deps = await validateOrderAndProduct(id, body.product_id)
     if (!deps.ok) {
       return NextResponse.json(
         { error: deps.error },
@@ -64,7 +66,7 @@ export async function POST(
     }
 
     const item = await createOrderItem({
-      order_id:      params.id,
+      order_id:      id,
       product_id:    body.product_id,
       product_name:  deps.product.name,
       product_price: deps.product.price,

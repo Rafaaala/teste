@@ -10,10 +10,11 @@ import type { UpdateAddressInput } from '@/types/database'
 // GET /api/enderecos/:id
 export async function GET(
   _req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const address = await getAddressById(params.id)
+    const { id } = await params
+    const address = await getAddressById(id)
 
     if (!address) {
       return NextResponse.json(
@@ -35,9 +36,10 @@ export async function GET(
 // PATCH /api/enderecos/:id
 export async function PATCH(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const body: UpdateAddressInput = await req.json()
 
     if (body.customer_id) {
@@ -70,7 +72,7 @@ export async function PATCH(
       ...(body.state && { state: body.state.trim().toUpperCase() }),
     }
 
-    const address = await updateAddress(params.id, payload)
+    const address = await updateAddress(id, payload)
 
     if (!address) {
       return NextResponse.json(

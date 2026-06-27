@@ -10,13 +10,14 @@ import { recalculateSessionTotals } from '@/lib/database/queries/sessions'
 // PATCH /api/sessions/:id/itens/:itemId — apenas cancelamento
 export async function PATCH(
   req: Request,
-  { params }: { params: { id: string; itemId: string } }
+  { params }: { params: Promise<{ id: string; itemId: string }> }
 ) {
   const auth = await requireAuth(req, ['admin', 'gerente'])
   if (auth.response) return auth.response
 
   try {
-    const session = await getSessionById(params.id)
+    const { id, itemId } = await params
+    const session = await getSessionById(id)
     if (!session) {
       return NextResponse.json(
         { error: 'Sessão não encontrada' },
@@ -24,8 +25,8 @@ export async function PATCH(
       )
     }
 
-    const item = await getSessionItemById(params.itemId)
-    if (!item || item.session_id !== params.id) {
+    const item = await getSessionItemById(itemId)
+    if (!item || item.session_id !== id) {
       return NextResponse.json(
         { error: 'Item não encontrado' },
         { status: 404 }
@@ -48,13 +49,13 @@ export async function PATCH(
       )
     }
 
-    const updated = await cancelSessionItem(params.itemId, {
+    const updated = await cancelSessionItem(itemId, {
       cancel_reason: body.cancel_reason,
       cancelled_by:  auth.user.id,
     })
 
     // Recalcula totais após cancelamento
-    await recalculateSessionTotals(params.id)
+    await recalculateSessionTotals(id)
 
     return NextResponse.json(updated)
   } catch (error) {

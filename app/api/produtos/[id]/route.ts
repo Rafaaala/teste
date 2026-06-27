@@ -10,10 +10,11 @@ import type { UpdateProductInput } from '@/types/database'
 // GET /api/produtos/:id
 export async function GET(
   _req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const product = await getProductById(params.id)
+    const { id } = await params
+    const product = await getProductById(id)
 
     if (!product) {
       return NextResponse.json(
@@ -35,15 +36,16 @@ export async function GET(
 // PATCH /api/produtos/:id
 export async function PATCH(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const body: UpdateProductInput = await req.json()
 
     // TODO: substituir pelo ID do usuário autenticado
     const TEMP_USER_ID = 'system'
 
-    const product = await updateProduct(params.id, body, TEMP_USER_ID)
+    const product = await updateProduct(id, body, TEMP_USER_ID)
 
     if (!product) {
       return NextResponse.json(
@@ -65,10 +67,11 @@ export async function PATCH(
 // DELETE /api/produtos/:id
 export async function DELETE(
   _req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const deleted = await deleteProduct(params.id)
+    const { id } = await params
+    const deleted = await deleteProduct(id)
 
     if (!deleted) {
       return NextResponse.json(

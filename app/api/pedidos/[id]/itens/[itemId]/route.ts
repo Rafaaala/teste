@@ -16,10 +16,11 @@ async function getItemForOrder(orderId: string, itemId: string) {
 // GET /api/pedidos/:id/itens/:itemId
 export async function GET(
   _req: Request,
-  { params }: { params: { id: string; itemId: string } }
+  { params }: { params: Promise<{ id: string; itemId: string }> }
 ) {
   try {
-    const item = await getItemForOrder(params.id, params.itemId)
+    const { id, itemId } = await params
+    const item = await getItemForOrder(id, itemId)
 
     if (!item) {
       return NextResponse.json(
@@ -41,10 +42,11 @@ export async function GET(
 // PATCH /api/pedidos/:id/itens/:itemId
 export async function PATCH(
   req: Request,
-  { params }: { params: { id: string; itemId: string } }
+  { params }: { params: Promise<{ id: string; itemId: string }> }
 ) {
   try {
-    const existing = await getItemForOrder(params.id, params.itemId)
+    const { id, itemId } = await params
+    const existing = await getItemForOrder(id, itemId)
     if (!existing) {
       return NextResponse.json(
         { error: 'Item não encontrado' },
@@ -88,7 +90,7 @@ export async function PATCH(
       }),
     }
 
-    const item = await updateOrderItem(params.itemId, payload)
+    const item = await updateOrderItem(itemId, payload)
 
     if (!item) {
       return NextResponse.json(

@@ -4,10 +4,11 @@ import { sql } from '@/lib/database'
 
 export async function GET(
   _req: Request,
-  { params }: { params: { orderId: string } }
+  { params }: { params: Promise<{ orderId: string }> }
 ) {
   try {
-    const order = await getOrderById(params.orderId)
+    const { orderId } = await params
+    const order = await getOrderById(orderId)
 
     if (!order) {
       return NextResponse.json(
@@ -19,7 +20,7 @@ export async function GET(
     const rows = await sql`
       SELECT *
       FROM payments
-      WHERE order_id = ${params.orderId}
+      WHERE order_id = ${orderId}
       ORDER BY created_at DESC
       LIMIT 1
     `

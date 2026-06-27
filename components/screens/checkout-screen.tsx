@@ -162,6 +162,13 @@ export function CheckoutScreen({ onBack }: CheckoutScreenProps) {
   };
 
   useEffect(() => {
+    // Não buscar CEP se for retirada no local
+    if (deliveryMethod !== "delivery") {
+      setCepStatus({ type: "idle", message: "" });
+      setCepLoading(false);
+      return;
+    }
+
     const cepDigits = onlyDigits(address.cep);
 
     if (!cepDigits) {
@@ -241,7 +248,7 @@ export function CheckoutScreen({ onBack }: CheckoutScreenProps) {
       cancelled = true;
       window.clearTimeout(timeout);
     };
-  }, [address.cep]);
+  }, [address.cep, deliveryMethod]);
 
   const discount = useMemo(() => {
     if (appliedCoupon === "NIRAN10") {
@@ -256,7 +263,6 @@ export function CheckoutScreen({ onBack }: CheckoutScreenProps) {
   const customerId = (session?.user as any)?.id as string | undefined;
   const [guestPhone, setGuestPhone] = useState("");
   const [guestName, setGuestName] = useState("");
-  const [customerIdentified, setCustomerIdentified] = useState(false);
 
   const formatMoney = (value: number) =>
     `R$ ${value.toFixed(2).replace(".", ",")}`;
@@ -326,19 +332,38 @@ export function CheckoutScreen({ onBack }: CheckoutScreenProps) {
   const handleCreateCheckout = async () => {
     if (submitLockRef.current || checkoutState === "loading") return;
 
-
-    if (
-      !address.cep ||
-      !address.street ||
-      !address.number ||
-      !address.neighborhood ||
-      !address.city ||
-      !address.state
-    ) {
+    // Validar carrinho vazio
+    if (items.length === 0) {
       setCheckoutState("error");
-      setCheckoutMessage("Preencha o endereço antes de continuar.");
-      notifyError("addressFetchError");
+      setCheckoutMessage("Adicione itens ao carrinho antes de continuar.");
+      notifyError("cartEmpty");
       return;
+    }
+
+    // Validar quantidades
+    if (items.some((item) => Number(item.quantity) <= 0)) {
+      setCheckoutState("error");
+      setCheckoutMessage("Verifique a quantidade dos itens.");
+      notifyError("invalidQuantity");
+      return;
+    }
+
+    // Validar endereço apenas se for entrega
+    if (deliveryMethod === "delivery") {
+      const hasValidAddress =
+        address.cep &&
+        address.street &&
+        address.number &&
+        address.neighborhood &&
+        address.city &&
+        address.state;
+
+      if (!hasValidAddress) {
+        setCheckoutState("error");
+        setCheckoutMessage("Preencha o endereço de entrega antes de continuar.");
+        notifyError("addressFetchError");
+        return;
+      }
     }
 
     submitLockRef.current = true;
@@ -347,31 +372,35 @@ export function CheckoutScreen({ onBack }: CheckoutScreenProps) {
     notifyInfo("awaitingConfirmation");
 
     try {
-      const addressResponse = await fetch("/api/enderecos", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...buildAddressPayload(),
-          // customer_id: finalCustomerId,
-        }),
-      });
+      let addressId: string | undefined;
 
-      if (!addressResponse.ok) {
-        const data = await addressResponse.json().catch(() => ({}));
-        throw new Error(data.error || "Falha ao criar endereço");
+      // Criar endereço apenas se for entrega
+      if (deliveryMethod === "delivery") {
+        const addressResponse = await fetch("/api/enderecos", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...buildAddressPayload(),
+          }),
+        });
+
+        if (!addressResponse.ok) {
+          const data = await addressResponse.json().catch(() => ({}));
+          throw new Error(data.error || "Falha ao criar endereço");
+        }
+
+        const savedAddress = await addressResponse.json();
+        addressId = savedAddress.id;
+        notifySuccess("addressSaved");
       }
-
-      const savedAddress = await addressResponse.json();
-      notifySuccess("addressSaved");
 
       const orderResponse = await fetch("/api/pedidos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          // customer_id: finalCustomerId, // ou null, dependendo do backend
           customer_name: guestName,
           customer_phone: guestPhone,
-          address_id: savedAddress.id,
+          address_id: addressId,
           subtotal,
           delivery_fee: deliveryFee,
           notes: notes.trim() || undefined,
@@ -583,7 +612,7 @@ export function CheckoutScreen({ onBack }: CheckoutScreenProps) {
               </p>
 
               <p className="text-sm text-muted-foreground">
-                Informe seu nome e telefone para identificarmos o pedido.
+                Informe seu nome e telefone para identificação do pedido.
               </p>
             </div>
 
@@ -608,21 +637,8 @@ export function CheckoutScreen({ onBack }: CheckoutScreenProps) {
             </div>
           </div>
 
-          {customerIdentified && (
-            <div className="rounded-3xl border border-emerald-500 bg-emerald-500/10 p-4 shadow-sm flex items-center gap-3">
-              <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-              <div>
-                <p className="text-sm font-semibold text-emerald-900 dark:text-emerald-300">
-                  {guestName}
-                </p>
-                <p className="text-xs text-emerald-800 dark:text-emerald-400">
-                  {guestPhone}
-                </p>
-              </div>
-            </div>
-          )}
-
-          <div className="rounded-3xl border border-border bg-card p-4 shadow-sm">
+          {deliveryMethod === "delivery" && (
+            <div className="rounded-3xl border border-border bg-card p-4 shadow-sm">
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
                 <p className="text-sm font-semibold text-foreground">
@@ -776,7 +792,8 @@ export function CheckoutScreen({ onBack }: CheckoutScreenProps) {
             <div className="mt-4 rounded-2xl bg-secondary/40 px-4 py-3 text-sm text-muted-foreground">
               Você pode editar qualquer campo manualmente após o preenchimento.
             </div>
-          </div>
+            </div>
+          )}
 
           <div className="rounded-3xl bg-card p-4 shadow-sm border border-border">
             <div className="mb-4 flex items-center justify-between gap-3">

@@ -11,13 +11,14 @@ import { validateOrderAndProduct }    from '@/lib/database/validate-order-item-d
 // GET /api/sessions/:id/itens
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const auth = await requireAuth(req, ['admin', 'gerente', 'garcom'])
   if (auth.response) return auth.response
 
   try {
-    const session = await getSessionById(params.id)
+    const { id } = await params
+    const session = await getSessionById(id)
     if (!session) {
       return NextResponse.json(
         { error: 'Sessão não encontrada' },
@@ -25,7 +26,7 @@ export async function GET(
       )
     }
 
-    const items = await getSessionItemsBySessionId(params.id)
+    const items = await getSessionItemsBySessionId(id)
     return NextResponse.json(items)
   } catch (error) {
     console.error('[GET /api/sessions/:id/itens]', error)
@@ -39,13 +40,14 @@ export async function GET(
 // POST /api/sessions/:id/itens
 export async function POST(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const auth = await requireAuth(req, ['admin', 'gerente', 'garcom'])
   if (auth.response) return auth.response
 
   try {
-    const session = await getSessionById(params.id)
+    const { id } = await params
+    const session = await getSessionById(id)
     if (!session) {
       return NextResponse.json(
         { error: 'Sessão não encontrada' },
@@ -77,7 +79,7 @@ export async function POST(
     }
 
     // Reutiliza o validator de produto — valida se existe e está ativo
-    const deps = await validateOrderAndProduct(params.id, body.product_id)
+    const deps = await validateOrderAndProduct(id, body.product_id)
     if (!deps.ok) {
       return NextResponse.json(
         { error: deps.error },
@@ -86,7 +88,7 @@ export async function POST(
     }
 
     const item = await createSessionItem({
-      session_id:    params.id,
+      session_id:    id,
       product_id:    body.product_id,
       product_name:  deps.product.name,
       product_price: deps.product.price,
@@ -96,7 +98,7 @@ export async function POST(
     })
 
     // Recalcula totais da sessão
-    await recalculateSessionTotals(params.id)
+    await recalculateSessionTotals(id)
 
     // Log simulando impressão na cozinha
     console.log(`

@@ -10,10 +10,11 @@ import type { UpdateCategoryInput } from '@/types/database'
 // GET /api/categorias/:id 
 export async function GET(
   _req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const category = await getCategoryById(params.id)
+    const { id } = await params
+    const category = await getCategoryById(id)
 
     if (!category) {
       return NextResponse.json(
@@ -35,11 +36,12 @@ export async function GET(
 // PATCH /api/categorias/:id
 export async function PATCH(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const body: UpdateCategoryInput = await req.json()
-    const category = await updateCategory(params.id, body)
+    const category = await updateCategory(id, body)
 
     if (!category) {
       return NextResponse.json(
@@ -61,10 +63,11 @@ export async function PATCH(
 // DELETE /api/categorias/:id
 export async function DELETE(
   _req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const deleted = await deleteCategory(params.id)
+    const { id } = await params
+    const deleted = await deleteCategory(id)
 
     if (!deleted) {
       return NextResponse.json(

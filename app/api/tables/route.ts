@@ -20,7 +20,7 @@ export async function GET(req: Request) {
 
     if (withSessions) {
       // Retorna mesas com informações de sessão
-      const tables = await sql<TableWithSessionInfo[]>`
+      const tables = await sql`
         SELECT 
           t.id,
           t.number,
@@ -39,7 +39,7 @@ export async function GET(req: Request) {
         WHERE t.is_active = true
         GROUP BY t.id, s.id
         ORDER BY t.number ASC
-      `;
+      ` as TableWithSessionInfo[]
       return NextResponse.json(tables);
     }
 

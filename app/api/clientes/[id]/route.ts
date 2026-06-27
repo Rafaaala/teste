@@ -9,10 +9,11 @@ import type { UpdateCustomerInput } from '@/types/database'
 // GET /api/clientes/:id
 export async function GET(
   _req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const customer = await getCustomerById(params.id)
+    const { id } = await params
+    const customer = await getCustomerById(id)
 
     if (!customer) {
       return NextResponse.json(
@@ -34,11 +35,12 @@ export async function GET(
 // PATCH /api/clientes/:id
 export async function PATCH(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const body: UpdateCustomerInput = await req.json()
-    const customer = await updateCustomer(params.id, body)
+    const customer = await updateCustomer(id, body)
 
     if (!customer) {
       return NextResponse.json(

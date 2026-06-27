@@ -11,10 +11,11 @@ import type { UpdateOrderInput } from '@/types/database'
 // GET /api/pedidos/:id
 export async function GET(
   _req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const order = await getOrderById(params.id)
+    const { id } = await params
+    const order = await getOrderById(id)
 
     if (!order) {
       return NextResponse.json(
@@ -36,10 +37,11 @@ export async function GET(
 // PATCH /api/pedidos/:id
 export async function PATCH(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const existing = await getOrderById(params.id)
+    const { id } = await params
+    const existing = await getOrderById(id)
     if (!existing) {
       return NextResponse.json(
         { error: 'Pedido não encontrado' },
@@ -103,7 +105,7 @@ export async function PATCH(
       }),
     }
 
-    const order = await updateOrder(params.id, payload)
+    const order = await updateOrder(id, payload)
 
     if (!order) {
       return NextResponse.json(

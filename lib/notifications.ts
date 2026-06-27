@@ -33,6 +33,14 @@ const toastMessages = {
     title: 'Falha no pagamento',
     description: 'Não foi possível concluir a cobrança.',
   },
+  cartEmpty: {
+    title: 'Carrinho vazio',
+    description: 'Adicione itens ao carrinho antes de continuar.',
+  },
+  invalidQuantity: {
+    title: 'Quantidade inválida',
+    description: 'Verifique a quantidade dos itens.',
+  },
 } as const
 
 type ToastKey = keyof typeof toastMessages

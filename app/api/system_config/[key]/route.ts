@@ -14,10 +14,11 @@ function decodeKey(key: string): string {
 // GET /api/system_config/:key
 export async function GET(
   _req: Request,
-  { params }: { params: { key: string } }
+  { params }: { params: Promise<{ key: string }> }
 ) {
   try {
-    const key = decodeKey(params.key)
+    const { key: keyValue } = await params
+    const key = decodeKey(keyValue)
     const config = await getSystemConfigByKey(key)
 
     if (!config) {
@@ -40,10 +41,11 @@ export async function GET(
 // PATCH /api/system_config/:key
 export async function PATCH(
   req: Request,
-  { params }: { params: { key: string } }
+  { params }: { params: Promise<{ key: string }> }
 ) {
   try {
-    const key = decodeKey(params.key)
+    const { key: keyValue } = await params
+    const key = decodeKey(keyValue)
     const existing = await getSystemConfigByKey(key)
 
     if (!existing) {

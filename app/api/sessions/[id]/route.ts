@@ -9,13 +9,14 @@ import { updateTable }         from '@/lib/database/queries/tables'
 // GET /api/sessions/:id
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const auth = await requireAuth(req, ['admin', 'gerente', 'garcom'])
   if (auth.response) return auth.response
 
   try {
-    const session = await getSessionById(params.id)
+    const { id } = await params
+    const session = await getSessionById(id)
     if (!session) {
       return NextResponse.json(
         { error: 'Sessão não encontrada' },
@@ -36,15 +37,16 @@ export async function GET(
 // PATCH /api/sessions/:id
 export async function PATCH(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const auth = await requireAuth(req, ['admin', 'gerente'])
   if (auth.response) return auth.response
 
   try {
+    const { id } = await params
     const body = await req.json()
 
-    const existing = await getSessionById(params.id)
+    const existing = await getSessionById(id)
     if (!existing) {
       return NextResponse.json(
         { error: 'Sessão não encontrada' },
@@ -80,7 +82,7 @@ export async function PATCH(
     if (body.guest_count !== undefined) input.guest_count = body.guest_count
     if (body.notes       !== undefined) input.notes       = body.notes
 
-    const session = await updateSession(params.id, input as any)
+    const session = await updateSession(id, input as any)
 
     return NextResponse.json(session)
   } catch (error) {

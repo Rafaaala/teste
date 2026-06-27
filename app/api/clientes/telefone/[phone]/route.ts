@@ -6,10 +6,11 @@ import { getCustomerWithAddressesByPhone } from '@/lib/database/queries/customer
 // Chamado no checkout assim que o cliente termina de digitar o telefone
 export async function GET(
   _req: Request,
-  { params }: { params: { phone: string } }
+  { params }: { params: Promise<{ phone: string }> }
 ) {
   try {
-    const phone = params.phone.trim()
+    const { phone: phoneValue } = await params
+    const phone = phoneValue.trim()
 
     if (!phone) {
       return NextResponse.json(

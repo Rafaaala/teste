@@ -11,10 +11,11 @@ import { TABLE_STATUSES } from '@/lib/database/queries/tables'
 // GET /api/tables/:id
 export async function GET(
   _req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const table = await getTableById(params.id)
+    const { id } = await params
+    const table = await getTableById(id)
 
     if (!table) {
       return NextResponse.json(
@@ -36,9 +37,10 @@ export async function GET(
 // PATCH /api/tables/:id
 export async function PATCH(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const body: UpdateTableInput = await req.json()
 
     if (body.number !== undefined && body.number <= 0) {
@@ -62,7 +64,7 @@ export async function PATCH(
       )
     }
 
-    const table = await updateTable(params.id, body)
+    const table = await updateTable(id, body)
 
     if (!table) {
       return NextResponse.json(
@@ -84,10 +86,11 @@ export async function PATCH(
 // DELETE /api/tables/:id
 export async function DELETE(
   _req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const deleted = await deleteTable(params.id)
+    const { id } = await params
+    const deleted = await deleteTable(id)
 
     if (!deleted) {
       return NextResponse.json(

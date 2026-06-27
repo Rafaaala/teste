@@ -1,24 +1,12 @@
 // app/api/clientes/route.ts
 import { NextResponse } from 'next/server'
 import {
-  getAllCustomers,
   createCustomer,
 } from '@/lib/database/queries/customer'
 import type { CreateCustomerInput } from '@/types/database'
 
-// GET /api/clientes
-export async function GET() {
-  try {
-    const customers = await getAllCustomers()
-    return NextResponse.json(customers)
-  } catch (error) {
-    console.error('[GET /api/clientes]', error)
-    return NextResponse.json(
-      { error: 'Erro ao buscar clientes' },
-      { status: 500 }
-    )
-  }
-}
+// NOTE: GET endpoint removed - getAllCustomers does not exist in customer.ts
+// Use specific queries (getCustomerById, getCustomerByPhone, getCustomerByEmail) instead
 
 // POST /api/clientes
 export async function POST(req: Request) {
