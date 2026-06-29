@@ -3,6 +3,7 @@ import type { NextAuthOptions } from 'next-auth'
 import bcrypt from 'bcrypt'
 import { getCustomerByPhone, getCustomerByEmail } from '@/lib/database/queries/customer'
 import { getUserByEmail } from '@/lib/database/queries/users'
+import { requireEnv } from '@/lib/env'
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -96,7 +97,7 @@ export const authOptions: NextAuthOptions = {
     },
   },
 
-  secret: process.env.NEXTAUTH_SECRET,
+  secret: requireEnv('NEXTAUTH_SECRET'),
 }
 
 export default authOptions
